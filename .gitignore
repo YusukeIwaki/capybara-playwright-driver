@@ -7,5 +7,21 @@
 /spec/reports/
 /tmp/
 
+# rbenv
+.ruby-version
+
+# direnv
+.envrc
+
+/.vscode
+/Gemfile.lock
+/vendor/bundle
+.DS_Store
+
 # rspec failure tracking
 .rspec_status
+
+# RubyMine
+/.idea/
+/.rakeTasks
+
