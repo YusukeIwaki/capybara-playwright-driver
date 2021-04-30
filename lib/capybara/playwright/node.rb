@@ -12,7 +12,11 @@ module Capybara
         @element = element
       end
 
-      protected attr_reader :element
+      protected
+
+      attr_reader :element
+
+      public
 
       def all_text
         text = @element.text_content
@@ -171,22 +175,12 @@ module Capybara
       end
 
       def find_xpath(query, **options)
-        @element.wait_for_selector(
-          "xpath=#{query}",
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
-        @element.query_selector("xpath=#{query}").map do |el|
+        @element.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @page, el)
         end
       end
 
       def find_css(query, **options)
-        @element.wait_for_selector(
-          query,
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
         @element.query_selector_all(query).map do |el|
           Node.new(@driver, @page, el)
         end

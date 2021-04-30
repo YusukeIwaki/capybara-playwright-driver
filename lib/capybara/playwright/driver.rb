@@ -13,6 +13,9 @@ module Capybara
         @page_options = PageOptions.new(options)
       end
 
+      def wait?; true; end
+      def needs_server?; true; end
+
       def browser
         @browser ||= create_browser
       end

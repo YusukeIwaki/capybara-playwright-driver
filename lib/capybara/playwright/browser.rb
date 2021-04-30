@@ -1,6 +1,13 @@
 module Capybara
   module Playwright
     class Browser
+      def self.undefined_method(name)
+        define_method(name) do |*args, **kwargs|
+          puts "call #{name}(args=#{args}, kwargs=#{kwargs})"
+          raise NotImplementedError.new("Capybara::Playwright::Browser##{name} is not implemented!")
+        end
+      end
+
       def initialize(playwright:, driver:, browser_type:, browser_options:, page_options:)
         @driver = driver
 
@@ -16,10 +23,14 @@ module Capybara
         @playwright_browser.close
       end
 
+      undefined_method :current_url
+
       def visit(path)
         url =
           if Capybara.app_host
             URI(Capybara.app_host).merge(path)
+          elsif Capybara.default_host
+            URI(Capybara.default_host).merge(path)
           else
             path
           end
@@ -53,9 +64,33 @@ module Capybara
         end
       end
 
+      undefined_method :html
+      undefined_method :go_back
+      undefined_method :go_forward
+      undefined_method :execute_script
+      undefined_method :evaluate_script
+      undefined_method :evaluate_async_script
+
       def save_screenshot(path, **options)
         @playwright_page.screenshot(path: path)
       end
+
+      undefined_method :response_headers
+      undefined_method :status_code
+      undefined_method :send_keys
+      undefined_method :switch_to_frame
+      undefined_method :current_window_handle
+      undefined_method :window_size
+      undefined_method :resize_window_to
+      undefined_method :maximize_window
+      undefined_method :fullscreen_window
+      undefined_method :close_window
+      undefined_method :window_handles
+      undefined_method :open_new_window
+      undefined_method :switch_to_window
+      undefined_method :no_such_window_error
+      undefined_method :accept_modal
+      undefined_method :dismiss_modal
     end
   end
 end

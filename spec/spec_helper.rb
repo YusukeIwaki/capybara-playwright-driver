@@ -18,13 +18,12 @@ RSpec.configure do |config|
   config.define_derived_metadata(file_path: %r(/spec/feature/)) do |metadata|
     metadata[:type] = :feature
   end
-
-  config.before(:suite) do
-    Capybara.register_driver(:playwright) do |app|
-      Capybara::Playwright::Driver.new(app, browser_type: :firefox, headless: false)
-    end
-    Capybara.default_max_wait_time = 15
-    Capybara.default_driver = :playwright
-    Capybara.save_path = 'tmp/capybara'
-  end
 end
+
+Capybara.register_driver(:playwright) do |app|
+  Capybara::Playwright::Driver.new(app, browser_type: :chromium, headless: false)
+end
+
+Capybara.default_driver = :playwright
+Capybara.save_path = 'tmp/capybara'
+Capybara.server = :webrick

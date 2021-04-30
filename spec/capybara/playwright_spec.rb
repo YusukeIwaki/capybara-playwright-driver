@@ -1,7 +1,15 @@
 # frozen_string_literal: true
 
-RSpec.describe Capybara::Playwright do
-  it 'has a version number' do
-    expect(Capybara::Playwright::VERSION).not_to be nil
-  end
+require 'spec_helper'
+require 'capybara/spec/spec_helper'
+
+module TestSessions
+  Playwright = Capybara::Session.new(:playwright, TestApp)
+end
+
+skipped_tests = %i[
+
+]
+Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_skip: skipped_tests do |example|
+
 end
