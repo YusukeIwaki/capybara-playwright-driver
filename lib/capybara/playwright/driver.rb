@@ -4,6 +4,7 @@ module Capybara
       extend Forwardable
 
       def initialize(app, **options)
+        @playwright_cli_executable_path = options[:playwright_cli_executable_path] || 'npx playwright'
         @browser_type = options[:browser_type] || :chromium
         unless %i(chromium firefox webkit).include?(@browser_type)
           raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
@@ -40,7 +41,7 @@ module Capybara
       end
 
       private def execute_playwright
-        ::Playwright.create(playwright_cli_executable_path: 'npx playwright')
+        ::Playwright.create(playwright_cli_executable_path: @playwright_cli_executable_path)
       end
 
       private def quit

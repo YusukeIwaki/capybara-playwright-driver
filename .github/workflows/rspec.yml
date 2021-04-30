@@ -1,0 +1,47 @@
+name: RSpec
+on: [pull_request]
+jobs:
+  playwright_driver_spec:
+    name: Playwright Driver
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7.3
+          bundler-cache: true
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - uses: microsoft/playwright-github-action@v1
+      - name: setup playwright via npm install
+        run: |
+          npm install playwright@next
+          ./node_modules/.bin/playwright install
+      - run: bundle exec rspec spec/capybara/
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
+  example_spec:
+    name: Example
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7.3
+          bundler-cache: true
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - uses: microsoft/playwright-github-action@v1
+      - name: setup playwright via npm install
+        run: |
+          npm install playwright@next
+          ./node_modules/.bin/playwright install
+      - run: bundle exec rspec spec/feature/
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
