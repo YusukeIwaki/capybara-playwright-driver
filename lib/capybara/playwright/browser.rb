@@ -43,22 +43,12 @@ module Capybara
       end
 
       def find_xpath(query, **options)
-        @playwright_page.wait_for_selector(
-          "xpath=#{query}",
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
         @playwright_page.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @puppeteer_page, el)
         end
       end
 
       def find_css(query, **options)
-        @playwright_page.wait_for_selector(
-          query,
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
         @playwright_page.query_selector_all(query).map do |el|
           Node.new(@driver, @playwright_page, el)
         end
@@ -78,7 +68,11 @@ module Capybara
 
       undefined_method :go_back
       undefined_method :go_forward
-      undefined_method :execute_script
+
+      def execute_script(script, *args)
+        @playwright_page.evaluate("function (arguments) { #{script} }", arg: unwrap_node(args))
+        nil
+      end
 
       def evaluate_script(script, *args)
         result = @playwright_page.evaluate("function (arguments) { return #{script} }", arg: unwrap_node(args))

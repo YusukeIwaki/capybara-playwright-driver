@@ -73,7 +73,11 @@ module Capybara
       # @param value [String, Array] Array is only allowed if node has 'multiple' attribute
       # @param options [Hash] Driver specific options for how to set a value on a node
       def set(value, **options)
-        @element.fill(value)
+        @element.fill(value, timeout: Capybara.default_max_wait_time * 1000)
+      rescue ::Playwright::TimeoutError
+        raise if @element.editable?
+
+        puts "[INFO] Node#set: element is not editable. #{@element}"
       end
 
       def select_option
