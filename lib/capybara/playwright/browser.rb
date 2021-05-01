@@ -64,11 +64,27 @@ module Capybara
         end
       end
 
-      undefined_method :html
+      def html
+        js = <<~JAVASCRIPT
+        () => {
+          let html = '';
+          if (document.doctype) html += new XMLSerializer().serializeToString(document.doctype);
+          if (document.documentElement) html += document.documentElement.outerHTML;
+          return html;
+        }
+        JAVASCRIPT
+        @playwright_page.evaluate(js)
+      end
+
       undefined_method :go_back
       undefined_method :go_forward
       undefined_method :execute_script
-      undefined_method :evaluate_script
+
+      def evaluate_script(script, *args)
+        result = @playwright_page.evaluate("function (arguments) { return #{script} }", arg: unwrap_node(args))
+        wrap_node(result)
+      end
+
       undefined_method :evaluate_async_script
 
       def save_screenshot(path, **options)
@@ -91,6 +107,33 @@ module Capybara
       undefined_method :no_such_window_error
       undefined_method :accept_modal
       undefined_method :dismiss_modal
+
+      private def unwrap_node(args)
+        args.map do |arg|
+          if arg.is_a?(Node)
+            arg.send(:element)
+          else
+            arg
+          end
+        end
+      end
+
+      private def wrap_node(arg)
+        case arg
+        when Array
+          arg.map do |item|
+            wrap_node(item)
+          end
+        when Hash
+          arg.map do |key, value|
+            [key, wrap_node(value)]
+          end.to_h
+        when ::Playwright::ElementHandle
+          Node.new(@driver, @puppeteer_page, arg)
+        else
+          arg
+        end
+      end
     end
   end
 end

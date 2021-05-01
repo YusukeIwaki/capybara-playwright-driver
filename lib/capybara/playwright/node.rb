@@ -49,11 +49,21 @@ module Capybara
       end
 
       def [](name)
-        raise NotImplementedError
+        @element[name]
       end
 
       def value
-        raise NotImplementedError
+        # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L31
+        # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
+        js = <<~JAVASCRIPT
+        el => {
+          if (el.tagName == "select" && el.multiple)
+            return Array.from(el.querySelectorAll("option:checked"), e => e.value)
+          else
+            return el.value
+        }
+        JAVASCRIPT
+        @element.evaluate(js)
       end
 
       def style(styles)
