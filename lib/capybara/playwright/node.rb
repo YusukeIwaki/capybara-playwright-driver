@@ -28,7 +28,7 @@ module Capybara
       end
 
       def visible_text
-        return '' unless visible?
+        return '' unless @element.visible?
 
         js = <<~JAVASCRIPT
           function(el){
@@ -89,7 +89,7 @@ module Capybara
       end
 
       def click(keys = [], **options)
-        if visible?
+        if @element.visible?
           @element.click
         else
           super
@@ -101,7 +101,7 @@ module Capybara
       end
 
       def double_click(keys = [], **options)
-        if visible?
+        if @element.visible?
           @element.dblclick
         else
           super
@@ -157,7 +157,7 @@ module Capybara
       end
 
       def readonly?
-        raise NotImplementedError
+        !@element.editable?
       end
 
       def multiple?
