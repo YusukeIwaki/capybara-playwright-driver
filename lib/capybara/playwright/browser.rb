@@ -23,7 +23,9 @@ module Capybara
         @playwright_browser.close
       end
 
-      undefined_method :current_url
+      def current_url
+        @playwright_page.url
+      end
 
       def visit(path)
         url =
@@ -75,7 +77,7 @@ module Capybara
       end
 
       def evaluate_script(script, *args)
-        result = @playwright_page.evaluate("function (arguments) { return #{script} }", arg: unwrap_node(args))
+        result = @playwright_page.evaluate_handle("function (arguments) { return #{script} }", arg: unwrap_node(args))
         wrap_node(result)
       end
 
@@ -124,6 +126,8 @@ module Capybara
           end.to_h
         when ::Playwright::ElementHandle
           Node.new(@driver, @puppeteer_page, arg)
+        when ::Playwright::JSHandle
+          arg.json_value
         else
           arg
         end
