@@ -41,6 +41,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     skip 'not implemented'
   end
 
+  Capybara::SpecHelper.reset!
+
   if example.metadata[:file_path].end_with?('/session/node_spec.rb')
     next
   end
