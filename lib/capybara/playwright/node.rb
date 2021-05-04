@@ -28,7 +28,7 @@ module Capybara
       end
 
       private def capybara_default_wait_time
-        Capybara.default_max_wait_time * 1000
+        Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
       end
 
       protected
