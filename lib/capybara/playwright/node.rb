@@ -6,6 +6,10 @@ module Capybara
         if options[:wait].is_a?(Numeric)
           options[:_playwright_wait] = options[:wait]
         end
+
+        # Playwright has own auto-waiting feature.
+        # So disable Capybara's retry logic.
+        options[:wait] = 0
         super
       end
     end
