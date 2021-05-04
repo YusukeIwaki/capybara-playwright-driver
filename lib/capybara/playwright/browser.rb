@@ -23,7 +23,9 @@ module Capybara
         @playwright_browser.close
       end
 
-      undefined_method :current_url
+      def current_url
+        @playwright_page.url
+      end
 
       def visit(path)
         url =
@@ -43,32 +45,42 @@ module Capybara
       end
 
       def find_xpath(query, **options)
-        @playwright_page.wait_for_selector(
-          "xpath=#{query}",
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
         @playwright_page.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @puppeteer_page, el)
         end
       end
 
       def find_css(query, **options)
-        @playwright_page.wait_for_selector(
-          query,
-          state: :visible,
-          timeout: Capybara.default_max_wait_time * 1000,
-        )
         @playwright_page.query_selector_all(query).map do |el|
           Node.new(@driver, @playwright_page, el)
         end
       end
 
-      undefined_method :html
+      def html
+        js = <<~JAVASCRIPT
+        () => {
+          let html = '';
+          if (document.doctype) html += new XMLSerializer().serializeToString(document.doctype);
+          if (document.documentElement) html += document.documentElement.outerHTML;
+          return html;
+        }
+        JAVASCRIPT
+        @playwright_page.evaluate(js)
+      end
+
       undefined_method :go_back
       undefined_method :go_forward
-      undefined_method :execute_script
-      undefined_method :evaluate_script
+
+      def execute_script(script, *args)
+        @playwright_page.evaluate("function (arguments) { #{script} }", arg: unwrap_node(args))
+        nil
+      end
+
+      def evaluate_script(script, *args)
+        result = @playwright_page.evaluate_handle("function (arguments) { return #{script} }", arg: unwrap_node(args))
+        wrap_node(result)
+      end
+
       undefined_method :evaluate_async_script
 
       def save_screenshot(path, **options)
@@ -91,6 +103,35 @@ module Capybara
       undefined_method :no_such_window_error
       undefined_method :accept_modal
       undefined_method :dismiss_modal
+
+      private def unwrap_node(args)
+        args.map do |arg|
+          if arg.is_a?(Node)
+            arg.send(:element)
+          else
+            arg
+          end
+        end
+      end
+
+      private def wrap_node(arg)
+        case arg
+        when Array
+          arg.map do |item|
+            wrap_node(item)
+          end
+        when Hash
+          arg.map do |key, value|
+            [key, wrap_node(value)]
+          end.to_h
+        when ::Playwright::ElementHandle
+          Node.new(@driver, @puppeteer_page, arg)
+        when ::Playwright::JSHandle
+          arg.json_value
+        else
+          arg
+        end
+      end
     end
   end
 end
