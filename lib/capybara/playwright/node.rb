@@ -80,15 +80,13 @@ module Capybara
       def value
         # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L31
         # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
-        js = <<~JAVASCRIPT
-        el => {
-          if (el.tagName.toLowerCase() == "select" && el.multiple)
-            return Array.from(el.querySelectorAll("option:checked"), e => e.value)
-          else
-            return el.value
-        }
-        JAVASCRIPT
-        @element.evaluate(js)
+        if tag_name == 'select' && @element.evaluate('el => el.multiple')
+          @element.query_selector_all('option:checked').map do |option|
+            option.evaluate('el => el.value')
+          end
+        else
+          @element.evaluate('el => el.value')
+        end
       end
 
       def style(styles)
@@ -101,7 +99,7 @@ module Capybara
       # @param options [Hash] Driver specific options for how to set a value on a node
       def set(value, **options)
         settable_class =
-          case @element.evaluate('el => el.tagName.toLowerCase()')
+          case tag_name
           when 'input'
             case @element['type']
             when 'radio'
@@ -176,7 +174,15 @@ module Capybara
       end
 
       def unselect_option
-        raise NotImplementedError
+        if parent_select_element.evaluate('el => el.multiple')
+          @element.evaluate('el => el.selected = false')
+        else
+          raise Capybara::UnselectNotAllowed, 'Cannot unselect option from single select box.'
+        end
+      end
+
+      private def parent_select_element
+        @element.query_selector('xpath=ancestor::select')
       end
 
       def click(keys = [], **options)
@@ -460,10 +466,19 @@ module Capybara
       end
 
       def tag_name
-        @element.evaluate('e => e.tagName.toLowerCase()')
+        @tag_name ||= @element.evaluate('e => e.tagName.toLowerCase()')
       end
 
       def visible?
+        if tag_name == 'option'
+          # <option> tag for single selection is invisible if not selected in Playwright.
+          # But Capybara expects it as visible.
+          select_element = parent_select_element
+          unless select_element.evaluate('el => el.multiple')
+            return select_element.visible?
+          end
+        end
+
         @element.visible?
       end
 
@@ -483,9 +498,7 @@ module Capybara
       end
 
       def selected?
-        # <option> tag is always invisible in Playwright.
-        # It is not selectable.
-        raise NotSupportedByDriverError, 'Capybara::Driver::Node#selected?'
+        @element.evaluate('el => el.selected')
       end
 
       def disabled?
@@ -497,7 +510,7 @@ module Capybara
       end
 
       def multiple?
-        raise NotImplementedError
+        @element.evaluate('el => el.multiple')
       end
 
       def rect

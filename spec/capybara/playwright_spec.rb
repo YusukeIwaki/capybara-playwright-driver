@@ -15,12 +15,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   when /on \/html selector/
     skip 'CSS selector with "/html" is not supported'
   when /should see disabled options as disabled/,
-       /should see enabled options in disabled select as disabled/,
        /should see enabled options in disabled optgroup as disabled/,
-       /Playwright node #disabled\? should be boolean/
-       /Playwright node #selected\?/
-    skip '<option> tag is always invisible in Playwright.'
-  when /should see a disabled fieldset as disabled/,
+       /should see a disabled fieldset as disabled/,
        /in a disabled fieldset/,
        /should be disabled for all elements that are CSS :disabled/
     skip 'disbaled? is available only with <button>, <select>, <input> or <textarea> in Playwright'
@@ -48,6 +44,10 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   elsif example.metadata[:file_path].end_with?('/check_spec.rb')
     next
   elsif example.metadata[:file_path].end_with?('/uncheck_spec.rb')
+    next
+  elsif example.metadata[:file_path].end_with?('/select_spec.rb')
+    skip
+  elsif example.metadata[:file_path].end_with?('/unselect_spec.rb')
     next
   end
   skip
