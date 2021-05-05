@@ -43,7 +43,11 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
 
   Capybara::SpecHelper.reset!
 
-  if example.metadata[:file_path].end_with?('/session/node_spec.rb')
+  if example.metadata[:file_path].end_with?('/node_spec.rb')
+    next
+  elsif example.metadata[:file_path].end_with?('/check_spec.rb')
+    next
+  elsif example.metadata[:file_path].end_with?('/uncheck_spec.rb')
     next
   end
   skip
