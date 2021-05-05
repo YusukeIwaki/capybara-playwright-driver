@@ -54,6 +54,12 @@ module Capybara
         @browser = nil
       end
 
+      def invalid_element_errors
+        @invalid_element_errors ||= [
+          Node::NotActionableError
+        ].freeze
+      end
+
       # ref: https://github.com/teamcapybara/capybara/blob/master/lib/capybara/driver/base.rb
       def_delegator(:browser, :current_url)
       def_delegator(:browser, :visit)

@@ -37,6 +37,8 @@ module Capybara
 
       public
 
+      class NotActionableError < StandardError ; end
+
       def all_text
         text = @element.text_content
         text.to_s.gsub(/[\u200b\u200e\u200f]/, '')
@@ -68,7 +70,11 @@ module Capybara
       end
 
       def [](name)
-        @element[name]
+        if name.to_s == 'checked'
+          @element.get_property(name).json_value
+        else
+          @element[name]
+        end
       end
 
       def value
@@ -76,7 +82,7 @@ module Capybara
         # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
         js = <<~JAVASCRIPT
         el => {
-          if (el.tagName == "select" && el.multiple)
+          if (el.tagName.toLowerCase() == "select" && el.multiple)
             return Array.from(el.querySelectorAll("option:checked"), e => e.value)
           else
             return el.value
@@ -94,11 +100,75 @@ module Capybara
       # @param value [String, Array] Array is only allowed if node has 'multiple' attribute
       # @param options [Hash] Driver specific options for how to set a value on a node
       def set(value, **options)
-        @element.fill(value, timeout: capybara_default_wait_time)
-      rescue ::Playwright::TimeoutError
-        raise if @element.editable?
+        settable_class =
+          case @element.evaluate('el => el.tagName.toLowerCase()')
+          when 'input'
+            case @element['type']
+            when 'radio'
+              RadioButton
+            when 'checkbox'
+              Checkbox
+            when 'file'
+              raise NotImplementedError
+            when 'date'
+              raise NotImplementedError
+            when 'time'
+              raise NotImplementedError
+            when 'datetime-local'
+              raise NotImplementedError
+            when 'color'
+              raise NotImplementedError
+            when 'range'
+              raise NotImplementedError
+            else
+              TextInput
+            end
+          when 'textarea'
+            TextInput
+          else
+            if @element.editable?
+              TextInput
+            else
+              raise NotImplementedError
+            end
+          end
 
-        puts "[INFO] Node#set: element is not editable. #{@element}"
+        settable_class.new(@element, capybara_default_wait_time).set(value, **options)
+      rescue ::Playwright::TimeoutError => err
+        raise NotActionableError.new(err)
+      end
+
+      class Settable
+        def initialize(element, timeout)
+          @element = element
+          @timeout = timeout
+        end
+      end
+
+      class RadioButton < Settable
+        def set(**options)
+          @element.check(timeout: @timeout)
+        end
+      end
+
+      class Checkbox < Settable
+        def set(value, **options)
+          if value
+            @element.check(timeout: @timeout)
+          else
+            @element.uncheck(timeout: @timeout)
+          end
+        end
+      end
+
+      class TextInput < Settable
+        def set(value, **options)
+          @element.fill(value, timeout: @timeout)
+        rescue ::Playwright::TimeoutError
+          raise if @element.editable?
+
+          puts "[INFO] Node#set: element is not editable. #{@element}"
+        end
       end
 
       def select_option
