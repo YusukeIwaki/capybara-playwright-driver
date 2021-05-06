@@ -18,7 +18,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
        /should see enabled options in disabled optgroup as disabled/,
        /should see a disabled fieldset as disabled/,
        /in a disabled fieldset/,
-       /should be disabled for all elements that are CSS :disabled/
+       /should be disabled for all elements that are CSS :disabled/,
+       /on a disabled option should not select/
     skip 'disbaled? is available only with <button>, <select>, <input> or <textarea> in Playwright'
   when /should offset outside (the|from center of) element/
     skip 'Playwright does not allow to click outside the element'
@@ -46,7 +47,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   elsif example.metadata[:file_path].end_with?('/uncheck_spec.rb')
     next
   elsif example.metadata[:file_path].end_with?('/select_spec.rb')
-    skip
+    next
   elsif example.metadata[:file_path].end_with?('/unselect_spec.rb')
     next
   end

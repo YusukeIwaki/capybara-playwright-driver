@@ -170,7 +170,14 @@ module Capybara
       end
 
       def select_option
-        raise NotImplementedError
+        select_element = parent_select_element
+        if select_element.evaluate('el => el.multiple')
+          selected_options = select_element.query_selector_all('option:checked')
+          selected_options << @element
+          select_element.select_option(element: selected_options, timeout: capybara_default_wait_time)
+        else
+          select_element.select_option(element: @element, timeout: capybara_default_wait_time)
+        end
       end
 
       def unselect_option
