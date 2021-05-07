@@ -18,6 +18,7 @@ RSpec.describe 'Example' do
     Capybara.app_host = 'https://github.com'
     visit '/'
     fill_in('q', with: 'Capybara')
+    sleep 1
     find('a[data-item-type="global_search"]').click
     all('.repo-list-item').each do |li|
       puts li.all('a').first.text
