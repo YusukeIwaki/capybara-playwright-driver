@@ -28,27 +28,26 @@ module Capybara
   Node::Element.prepend(WithElementHandlePatch)
 
   module Playwright
-    class Node <  ::Capybara::Driver::Node
-      # ref:
-      #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb
-      #   cuprite:    https://github.com/rubycdp/cuprite/blob/master/lib/capybara/cuprite/node.rb
-      #   apparition: https://github.com/twalpole/apparition/blob/master/lib/capybara/apparition/node.rb
-
+    # Selector and checking methods are derived from twapole/apparition
+    # Action methods (click, select_option, ...) uses playwright.
+    #
+    # ref:
+    #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb
+    #   apparition: https://github.com/twalpole/apparition/blob/master/lib/capybara/apparition/node.rb
+    class Node < ::Capybara::Driver::Node
       def initialize(driver, page, element)
         super(driver, element)
         @page = page
         @element = element
       end
 
+      protected def element
+        @element
+      end
+
       private def capybara_default_wait_time
         Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
       end
-
-      protected
-
-      attr_reader :element
-
-      public
 
       class NotActionableError < StandardError ; end
 
@@ -62,9 +61,9 @@ module Capybara
       end
 
       def visible_text
-        return '' unless @element.visible?
+        return '' unless visible?
 
-        js = <<~JAVASCRIPT
+        text = @element.evaluate(<<~JAVASCRIPT)
           function(el){
             if (el.nodeName == 'TEXTAREA'){
               return el.textContent;
@@ -75,7 +74,6 @@ module Capybara
             }
           }
         JAVASCRIPT
-        text = @element.evaluate(js)
         text.to_s.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
             .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
             .gsub(/\n+/, "\n")
@@ -495,16 +493,35 @@ module Capybara
       end
 
       def visible?
-        if tag_name == 'option'
-          # <option> tag for single selection is invisible if not selected in Playwright.
-          # But Capybara expects it as visible.
-          select_element = parent_select_element
-          unless select_element.evaluate('el => el.multiple')
-            return select_element.visible?
-          end
-        end
-
-        @element.visible?
+        # if an area element, check visibility of relevant image
+        @element.evaluate(<<~JAVASCRIPT)
+        function(el) {
+          if (el.tagName == 'AREA'){
+            const map_name = document.evaluate('./ancestor::map/@name', el, null, XPathResult.STRING_TYPE, null).stringValue;
+            el = document.querySelector(`img[usemap='#${map_name}']`);
+            if (!el){
+            return false;
+            }
+          }
+          var forced_visible = false;
+          while (el) {
+            const style = window.getComputedStyle(el);
+            if (style.visibility == 'visible')
+              forced_visible = true;
+            if ((style.display == 'none') ||
+                ((style.visibility == 'hidden') && !forced_visible) ||
+                (parseFloat(style.opacity) == 0)) {
+              return false;
+            }
+            var parent = el.parentElement;
+            if (parent && (parent.tagName == 'DETAILS') && !parent.open && (el.tagName != 'SUMMARY')) {
+              return false;
+            }
+            el = parent;
+          }
+          return true;
+        }
+        JAVASCRIPT
       end
 
       def obscured?
@@ -514,20 +531,23 @@ module Capybara
       end
 
       def checked?
-        @element.checked?
-      rescue ::Playwright::Error => err
-        raise unless err.message =~ /Not a checkbox or radio button/
-
-        puts err.message
-        false
+        @element.evaluate('el => !!el.checked')
       end
 
       def selected?
-        @element.evaluate('el => el.selected')
+        @element.evaluate('el => !!el.selected')
       end
 
       def disabled?
-        @element.disabled?
+        @element.evaluate(<<~JAVASCRIPT)
+        function(el) {
+          const xpath = 'parent::optgroup[@disabled] | \
+                        ancestor::select[@disabled] | \
+                        parent::fieldset[@disabled] | \
+                        ancestor::*[not(self::legend) or preceding-sibling::legend][parent::fieldset[@disabled]]';
+          return el.disabled || document.evaluate(xpath, el, null, XPathResult.BOOLEAN_TYPE, null).booleanValue
+        }
+        JAVASCRIPT
       end
 
       def readonly?
@@ -539,12 +559,17 @@ module Capybara
       end
 
       def rect
-        @element.bounding_box
+        @element.evaluate(<<~JAVASCRIPT)
+        function(el){
+          const rects = [...el.getClientRects()]
+          const rect = rects.find(r => (r.height && r.width)) || el.getBoundingClientRect();
+          return rect.toJSON();
+        }
+        JAVASCRIPT
       end
 
       def path
-        # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L491
-        js = <<~JAVASCRIPT
+        @element.evaluate(<<~JAVASCRIPT)
         (el) => {
           var xml = document;
           var xpath = '';
@@ -573,7 +598,6 @@ module Capybara
           return xpath;
         }
         JAVASCRIPT
-        @element.evaluate(js)
       end
 
       def trigger(event)
