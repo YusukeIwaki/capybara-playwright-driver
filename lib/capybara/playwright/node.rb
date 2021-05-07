@@ -1,20 +1,33 @@
 module Capybara
-  module Playwright
-    module ElementClickOptionPatch
-      def perform_click_action(keys, **options)
-        # Expose `wait` value to the block given to perform_click_action.
-        if options[:wait].is_a?(Numeric)
-          options[:_playwright_wait] = options[:wait]
-        end
+  module ElementClickOptionPatch
+    def perform_click_action(keys, **options)
+      # Expose `wait` value to the block given to perform_click_action.
+      if options[:wait].is_a?(Numeric)
+        options[:_playwright_wait] = options[:wait]
+      end
 
-        # Playwright has own auto-waiting feature.
-        # So disable Capybara's retry logic.
-        options[:wait] = 0
-        super
+      # Playwright has own auto-waiting feature.
+      # So disable Capybara's retry logic.
+      options[:wait] = 0
+      super
+    end
+  end
+  Node::Element.prepend(ElementClickOptionPatch)
+
+  module WithElementHandlePatch
+    def with_playwright_element_handle(&block)
+      raise ArgumentError.new('block must be given') unless block
+
+      if native.is_a?(::Playwright::ElementHandle)
+        block.call(native)
+      else
+        raise "#{native.inspect} is not a Playwirght::ElementHandle"
       end
     end
-    Capybara::Node::Element.prepend(ElementClickOptionPatch)
+  end
+  Node::Element.prepend(WithElementHandlePatch)
 
+  module Playwright
     class Node <  ::Capybara::Driver::Node
       # ref:
       #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb

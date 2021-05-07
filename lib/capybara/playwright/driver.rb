@@ -89,6 +89,9 @@ module Capybara
       def_delegator(:browser, :no_such_window_error)
       def_delegator(:browser, :accept_modal)
       def_delegator(:browser, :dismiss_modal)
+
+      # capybara-playwright-driver specific methods
+      def_delegator(:browser, :with_playwright_page)
     end
   end
 end

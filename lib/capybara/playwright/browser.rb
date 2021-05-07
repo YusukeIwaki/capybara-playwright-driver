@@ -132,6 +132,12 @@ module Capybara
           arg
         end
       end
+
+      def with_playwright_page(&block)
+        raise ArgumentError.new('block must be given') unless block
+
+        block.call(@playwright_page)
+      end
     end
   end
 end
