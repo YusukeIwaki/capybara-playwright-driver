@@ -40,16 +40,17 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
 
   Capybara::SpecHelper.reset!
 
-  if example.metadata[:file_path].end_with?('/node_spec.rb')
+  includes = [ # https://github.com/teamcapybara/capybara/tree/master/lib/capybara/spec/session
+    'node_spec.rb',
+    'check_spec.rb',
+    'uncheck_spec.rb',
+    'select_spec.rb',
+    'unselect_spec.rb',
+    'has_field_spec.rb',
+  ]
+  if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next
-  elsif example.metadata[:file_path].end_with?('/check_spec.rb')
-    next
-  elsif example.metadata[:file_path].end_with?('/uncheck_spec.rb')
-    next
-  elsif example.metadata[:file_path].end_with?('/select_spec.rb')
-    next
-  elsif example.metadata[:file_path].end_with?('/unselect_spec.rb')
-    next
+  else
+    skip
   end
-  skip
 end

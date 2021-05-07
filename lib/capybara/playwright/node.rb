@@ -70,11 +70,16 @@ module Capybara
       end
 
       def [](name)
-        if name.to_s == 'checked'
-          @element.get_property(name).json_value
-        else
-          @element[name]
-        end
+        property(name) || attribute(name)
+      end
+
+      private def property(name)
+        value = @element.get_property(name)
+        value.evaluate("value => ['object', 'function'].includes(typeof value) ? null : value")
+      end
+
+      private def attribute(name)
+        @element.get_attribute(name)
       end
 
       def value
@@ -101,7 +106,7 @@ module Capybara
         settable_class =
           case tag_name
           when 'input'
-            case @element['type']
+            case attribute('type')
             when 'radio'
               RadioButton
             when 'checkbox'
@@ -144,7 +149,7 @@ module Capybara
       end
 
       class RadioButton < Settable
-        def set(**options)
+        def set(_, **options)
           @element.check(timeout: @timeout)
         end
       end
