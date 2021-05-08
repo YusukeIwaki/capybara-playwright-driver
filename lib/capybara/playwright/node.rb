@@ -208,6 +208,8 @@ module Capybara
       end
 
       def select_option
+        return false if disabled?
+
         select_element = parent_select_element
         if select_element.evaluate('el => el.multiple')
           selected_options = select_element.query_selector_all('option:checked')
@@ -220,6 +222,8 @@ module Capybara
 
       def unselect_option
         if parent_select_element.evaluate('el => el.multiple')
+          return false if disabled?
+
           @element.evaluate('el => el.selected = false')
         else
           raise Capybara::UnselectNotAllowed, 'Cannot unselect option from single select box.'
