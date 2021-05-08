@@ -45,13 +45,29 @@ module Capybara
         @element
       end
 
+      private def assert_element_not_stale
+        # Playwright checks the staled state only when
+        # actionable methods. (click, select_option, hover, ...)
+        # Capybara expects stale checking also when getting inner text, and so on.
+        @element.enabled?
+      rescue ::Playwright::Error => err
+        if err.message =~ /Element is not attached to the DOM/
+          raise StaleReferenceError.new(err)
+        else
+          raise
+        end
+      end
+
       private def capybara_default_wait_time
         Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
       end
 
       class NotActionableError < StandardError ; end
+      class StaleReferenceError < StandardError ; end
 
       def all_text
+        assert_element_not_stale
+
         text = @element.text_content
         text.to_s.gsub(/[\u200b\u200e\u200f]/, '')
             .gsub(/[\ \n\f\t\v\u2028\u2029]+/, ' ')
@@ -61,6 +77,8 @@ module Capybara
       end
 
       def visible_text
+        assert_element_not_stale
+
         return '' unless visible?
 
         text = @element.evaluate(<<~JAVASCRIPT)
@@ -81,6 +99,8 @@ module Capybara
       end
 
       def [](name)
+        assert_element_not_stale
+
         property(name) || attribute(name)
       end
 
@@ -94,6 +114,8 @@ module Capybara
       end
 
       def value
+        assert_element_not_stale
+
         # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L31
         # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
         if tag_name == 'select' && @element.evaluate('el => el.multiple')
@@ -559,6 +581,8 @@ module Capybara
       end
 
       def rect
+        assert_element_not_stale
+
         @element.evaluate(<<~JAVASCRIPT)
         function(el){
           const rects = [...el.getClientRects()]
@@ -569,6 +593,8 @@ module Capybara
       end
 
       def path
+        assert_element_not_stale
+
         @element.evaluate(<<~JAVASCRIPT)
         (el) => {
           var xml = document;
@@ -615,12 +641,16 @@ module Capybara
       end
 
       def find_xpath(query, **options)
+        assert_element_not_stale
+
         @element.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @page, el)
         end
       end
 
       def find_css(query, **options)
+        assert_element_not_stale
+
         @element.query_selector_all(query).map do |el|
           Node.new(@driver, @page, el)
         end
