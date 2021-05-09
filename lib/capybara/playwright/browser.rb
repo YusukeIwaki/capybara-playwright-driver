@@ -111,8 +111,87 @@ module Capybara
       undefined_method :open_new_window
       undefined_method :switch_to_window
       undefined_method :no_such_window_error
-      undefined_method :accept_modal
-      undefined_method :dismiss_modal
+
+      class DialogAcceptor
+        def initialize(dialog_type, options)
+          @dialog_type = dialog_type
+          @options = options
+        end
+
+        def handle(dialog)
+          if @dialog_type == :prompt
+            dialog.accept_async(promptText: @options[:with] || dialog.default_value)
+          else
+            dialog.accept_async
+          end
+        end
+      end
+
+      class DialogMessageMatcher
+        def initialize(text_or_regex_or_nil)
+          if [NilClass, Regexp, String].none? { |k| text_or_regex_or_nil.is_a?(k) }
+            raise ArgumentError.new("invalid type: #{text_or_regex_or_nil.inspect}")
+          end
+
+          @filter = text_or_regex_or_nil
+        end
+
+        def matches?(message)
+          case @filter
+          when nil
+            true
+          when Regexp
+            message =~ @filter
+          when String
+            message&.include?(@filter)
+          end
+        end
+      end
+
+      def accept_modal(dialog_type, **options, &block)
+        timeout_sec = options[:wait]
+        acceptor = DialogAcceptor.new(dialog_type, options)
+        matcher = DialogMessageMatcher.new(options[:text])
+        message_promise = Concurrent::Promises.resolvable_future
+        callback = -> (dialog) {
+          message_promise.fulfill(dialog.message)
+          acceptor.handle(dialog)
+        }
+        @playwright_page.on('dialog', callback)
+        begin
+          block.call
+          message = message_promise.value!(timeout_sec)
+          if matcher.matches?(message)
+            message
+          else
+            raise Capybara::ModalNotFound
+          end
+        ensure
+          @playwright_page.off('dialog', callback)
+        end
+      end
+
+      def dismiss_modal(dialog_type, **options, &block)
+        timeout_sec = options[:wait]
+        matcher = DialogMessageMatcher.new(options[:text])
+        message_promise = Concurrent::Promises.resolvable_future
+        callback = -> (dialog) {
+          message_promise.fulfill(dialog.message)
+          dialog.dismiss
+        }
+        @playwright_page.on('dialog', callback)
+        begin
+          block.call
+          message = message_promise.value!(timeout_sec)
+          if matcher.matches?(message)
+            message
+          else
+            raise Capybara::ModalNotFound
+          end
+        ensure
+          @playwright_page.off('dialog', callback)
+        end
+      end
 
       private def unwrap_node(args)
         args.map do |arg|
