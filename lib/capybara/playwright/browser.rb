@@ -154,14 +154,17 @@ module Capybara
         matcher = DialogMessageMatcher.new(options[:text])
         message_promise = Concurrent::Promises.resolvable_future
         callback = -> (dialog) {
-          message_promise.fulfill(dialog.message)
+          message = dialog.message
+          if matcher.matches?(message)
+            message_promise.fulfill(message)
+          end
           acceptor.handle(dialog)
         }
         @playwright_page.on('dialog', callback)
         begin
           block.call
           message = message_promise.value!(timeout_sec)
-          if matcher.matches?(message)
+          if message_promise.fulfilled?
             message
           else
             raise Capybara::ModalNotFound
@@ -176,14 +179,17 @@ module Capybara
         matcher = DialogMessageMatcher.new(options[:text])
         message_promise = Concurrent::Promises.resolvable_future
         callback = -> (dialog) {
-          message_promise.fulfill(dialog.message)
+          message = dialog.message
+          if matcher.matches?(message)
+            message_promise.fulfill(message)
+          end
           dialog.dismiss
         }
         @playwright_page.on('dialog', callback)
         begin
           block.call
           message = message_promise.value!(timeout_sec)
-          if matcher.matches?(message)
+          if message_promise.fulfilled?
             message
           else
             raise Capybara::ModalNotFound
