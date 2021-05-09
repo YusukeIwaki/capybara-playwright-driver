@@ -34,7 +34,10 @@ module Capybara
       }.keys
 
       def value
-        @options.select { |k, _| NEW_PAGE_PARAMS.include?(k) }
+        @options.select { |k, _| NEW_PAGE_PARAMS.include?(k) }.tap do |options|
+          # Set default value
+          options[:acceptDownloads] = true
+        end
       end
     end
   end

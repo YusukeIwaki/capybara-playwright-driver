@@ -14,6 +14,11 @@ module Capybara
         browser = playwright.send(browser_type).launch(**browser_options)
 
         page = browser.new_page(**page_options)
+        page.on('download', -> (download) {
+          dest = File.join(Capybara.save_path, download.suggested_filename)
+          # download.save_as blocks main thread until download completes.
+          Thread.new(dest) { |_dest| download.save_as(_dest) }
+        })
 
         @playwright_browser = browser
         @playwright_page = page
