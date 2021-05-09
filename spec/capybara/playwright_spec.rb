@@ -33,9 +33,15 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'node_spec.rb',
     'check_spec.rb',
     'uncheck_spec.rb',
+    'choose_spec.rb',
     'select_spec.rb',
     'unselect_spec.rb',
+    'find_field_spec.rb',
     'has_field_spec.rb',
+    'body_spec.rb',
+    'click_button_spec.rb',
+    'click_link_or_button_spec.rb',
+    'click_link_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next

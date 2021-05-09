@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'capybara'
-  spec.add_dependency 'playwright-ruby-client', '>= 0.5.5'
+  spec.add_dependency 'playwright-ruby-client', '>= 0.5.6'
   spec.add_development_dependency 'bundler', '~> 2.2.3'
   spec.add_development_dependency 'launchy', '>= 2.0.4'
   spec.add_development_dependency 'pry-byebug'
