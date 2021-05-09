@@ -73,8 +73,13 @@ module Capybara
         @playwright_page.evaluate(js)
       end
 
-      undefined_method :go_back
-      undefined_method :go_forward
+      def go_back
+        @playwright_page.go_back
+      end
+
+      def go_forward
+        @playwright_page.go_forward
+      end
 
       def execute_script(script, *args)
         @playwright_page.evaluate("function (arguments) { #{script} }", arg: unwrap_node(args))

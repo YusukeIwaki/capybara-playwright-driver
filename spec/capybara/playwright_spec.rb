@@ -42,6 +42,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'click_button_spec.rb',
     'click_link_or_button_spec.rb',
     'click_link_spec.rb',
+    'go_back_spec.rb',
+    'go_forward_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next
