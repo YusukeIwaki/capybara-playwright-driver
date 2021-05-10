@@ -14,6 +14,9 @@ module Capybara
         browser = playwright.send(browser_type).launch(**browser_options)
 
         page = browser.new_page(**page_options)
+        page.on('dialog', -> (dialog) {
+          @dialog_event_handler.handle_dialog(dialog)
+        })
         page.on('download', -> (download) {
           dest = File.join(Capybara.save_path, download.suggested_filename)
           # download.save_as blocks main thread until download completes.
@@ -22,6 +25,11 @@ module Capybara
 
         @playwright_browser = browser
         @playwright_page = page
+        @dialog_event_handler = DialogEventHandler.new
+        @dialog_event_handler.default_handler = ->(dialog) {
+          puts "[WARNING] Unexpected modal - \"#{dialog.message}\""
+          dialog.dismiss
+        }
       end
 
       def quit
@@ -153,24 +161,26 @@ module Capybara
         acceptor = DialogAcceptor.new(dialog_type, options)
         matcher = DialogMessageMatcher.new(options[:text])
         message_promise = Concurrent::Promises.resolvable_future
-        callback = -> (dialog) {
+        handler = -> (dialog) {
           message = dialog.message
           if matcher.matches?(message)
             message_promise.fulfill(message)
+            acceptor.handle(dialog)
+          else
+            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" dowsn't match"))
+            dialog.dismiss
           end
-          acceptor.handle(dialog)
         }
-        @playwright_page.on('dialog', callback)
-        begin
+        @dialog_event_handler.with_handler(handler) do
           block.call
+
           message = message_promise.value!(timeout_sec)
           if message_promise.fulfilled?
             message
           else
+            # timed out
             raise Capybara::ModalNotFound
           end
-        ensure
-          @playwright_page.off('dialog', callback)
         end
       end
 
@@ -178,24 +188,25 @@ module Capybara
         timeout_sec = options[:wait]
         matcher = DialogMessageMatcher.new(options[:text])
         message_promise = Concurrent::Promises.resolvable_future
-        callback = -> (dialog) {
+        handler = -> (dialog) {
           message = dialog.message
           if matcher.matches?(message)
             message_promise.fulfill(message)
+          else
+            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" dowsn't match"))
           end
           dialog.dismiss
         }
-        @playwright_page.on('dialog', callback)
-        begin
+        @dialog_event_handler.with_handler(handler) do
           block.call
+
           message = message_promise.value!(timeout_sec)
           if message_promise.fulfilled?
             message
           else
+            # timed out
             raise Capybara::ModalNotFound
           end
-        ensure
-          @playwright_page.off('dialog', callback)
         end
       end
 
