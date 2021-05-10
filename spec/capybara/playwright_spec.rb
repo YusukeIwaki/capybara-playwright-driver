@@ -31,6 +31,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
 
   includes = [ # https://github.com/teamcapybara/capybara/tree/master/lib/capybara/spec/session
     'node_spec.rb',
+    'within_spec.rb',
     'check_spec.rb',
     'uncheck_spec.rb',
     'choose_spec.rb',
