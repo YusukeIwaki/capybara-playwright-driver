@@ -11,20 +11,12 @@ module Capybara
       def initialize(playwright:, driver:, browser_type:, browser_options:, page_options:)
         @driver = driver
 
-        browser = playwright.send(browser_type).launch(**browser_options)
-
-        page = browser.new_page(**page_options)
-        page.on('dialog', -> (dialog) {
-          @dialog_event_handler.handle_dialog(dialog)
-        })
-        page.on('download', -> (download) {
-          dest = File.join(Capybara.save_path, download.suggested_filename)
-          # download.save_as blocks main thread until download completes.
-          Thread.new(dest) { |_dest| download.save_as(_dest) }
-        })
-
-        @playwright_browser = browser
-        @playwright_page = page
+        browser_type = playwright.send(browser_type)
+        @playwright_browser = browser_type.launch(**browser_options)
+        @page_options = page_options
+        @playwright_page = create_page(
+          browser_context: create_browser_context,
+        )
         @dialog_event_handler = DialogEventHandler.new
         @dialog_event_handler.default_handler = ->(dialog) {
           puts "[WARNING] Unexpected modal - \"#{dialog.message}\""
@@ -34,6 +26,23 @@ module Capybara
             dialog.dismiss
           end
         }
+      end
+
+      private def create_browser_context
+        @playwright_browser.new_context(**@page_options)
+      end
+
+      private def create_page(browser_context:)
+        browser_context.new_page.tap do |page|
+          page.on('dialog', -> (dialog) {
+            @dialog_event_handler.handle_dialog(dialog)
+          })
+          page.on('download', -> (download) {
+            dest = File.join(Capybara.save_path, download.suggested_filename)
+            # download.save_as blocks main thread until download completes.
+            Thread.new(dest) { |_dest| download.save_as(_dest) }
+          })
+        end
       end
 
       def quit
@@ -119,9 +128,31 @@ module Capybara
       undefined_method :maximize_window
       undefined_method :fullscreen_window
       undefined_method :close_window
-      undefined_method :window_handles
-      undefined_method :open_new_window
-      undefined_method :switch_to_window
+
+      private def pages
+        @playwright_browser.contexts.flat_map(&:pages)
+      end
+
+      def window_handles
+        pages.map(&:guid)
+      end
+
+      def open_new_window(kind = :tab)
+        page =
+          if kind == :tab
+            create_page(browser_context: @playwright_page.context)
+          else
+            create_page(browser_context: create_browser_context)
+          end
+      end
+
+      def switch_to_window(handle)
+        if @playwright_page.guid != handle
+          @playwright_page = pages.find { |page| page.guid == handle }
+          @playwright_page.bring_to_front
+        end
+      end
+
       undefined_method :no_such_window_error
 
       class DialogAcceptor
