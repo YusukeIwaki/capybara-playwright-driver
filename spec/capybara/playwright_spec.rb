@@ -49,6 +49,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'accept_prompt_spec.rb',
     'dismiss_confirm_spec.rb',
     'dismiss_prompt_spec.rb',
+    'reset_session_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next

@@ -28,7 +28,11 @@ module Capybara
         @dialog_event_handler = DialogEventHandler.new
         @dialog_event_handler.default_handler = ->(dialog) {
           puts "[WARNING] Unexpected modal - \"#{dialog.message}\""
-          dialog.dismiss
+          if dialog.type == 'beforeunload'
+            dialog.accept_async
+          else
+            dialog.dismiss
+          end
         }
       end
 

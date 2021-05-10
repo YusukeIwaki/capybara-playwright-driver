@@ -51,7 +51,10 @@ module Capybara
         # Capybara expects stale checking also when getting inner text, and so on.
         @element.enabled?
       rescue ::Playwright::Error => err
-        if err.message =~ /Element is not attached to the DOM/
+        case err.message
+        when /Element is not attached to the DOM/
+          raise StaleReferenceError.new(err)
+        when /Cannot find context with specified id/
           raise StaleReferenceError.new(err)
         else
           raise
