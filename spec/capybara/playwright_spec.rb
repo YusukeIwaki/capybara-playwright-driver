@@ -23,8 +23,13 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   when /Playwright node #obscured\?/,
        /Playwright node #drag_to/,
        /Element#drop/,
-       /Playwright node #evaluate_async_script/
+       /Playwright node #evaluate_async_script/,
+       /within_frame/,
+       /should leave correct scopes after execution in case of error/
     pending 'not implemented'
+  when /Playwright Capybara::Window#maximize/,
+       /Playwright Capybara::Window#fullscreen/
+    skip 'not supported in Playwright driver'
   end
 
   Capybara::SpecHelper.reset!
@@ -50,6 +55,14 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'dismiss_confirm_spec.rb',
     'dismiss_prompt_spec.rb',
     'reset_session_spec.rb',
+    'window/become_closed_spec.rb',
+    'window/current_window_spec.rb',
+    'window/open_new_window_spec.rb',
+    'window/switch_to_window_spec.rb',
+    'window/window_opened_by_spec.rb',
+    'window/window_spec.rb',
+    'window/windows_spec.rb',
+    'window/within_window_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next

@@ -61,12 +61,17 @@ module Capybara
         ].freeze
       end
 
+      def no_such_window_error
+        Browser::NoSuchWindowError
+      end
+
       # ref: https://github.com/teamcapybara/capybara/blob/master/lib/capybara/driver/base.rb
       def_delegator(:browser, :current_url)
       def_delegator(:browser, :visit)
       def_delegator(:browser, :refresh)
       def_delegator(:browser, :find_xpath)
       def_delegator(:browser, :find_css)
+      def_delegator(:browser, :title)
       def_delegator(:browser, :html)
       def_delegator(:browser, :go_back)
       def_delegator(:browser, :go_forward)
@@ -87,7 +92,6 @@ module Capybara
       def_delegator(:browser, :window_handles)
       def_delegator(:browser, :open_new_window)
       def_delegator(:browser, :switch_to_window)
-      def_delegator(:browser, :no_such_window_error)
       def_delegator(:browser, :accept_modal)
       def_delegator(:browser, :dismiss_modal)
 
