@@ -26,6 +26,8 @@ module Capybara
             dialog.dismiss
           end
         }
+        @all_responses = {}
+        @last_response = nil
       end
 
       private def create_browser_context
@@ -52,6 +54,13 @@ module Capybara
             dest = File.join(Capybara.save_path, download.suggested_filename)
             # download.save_as blocks main thread until download completes.
             Thread.new(dest) { |_dest| download.save_as(_dest) }
+          })
+          page.on('response', -> (response) {
+            @all_responses[response.url] = response
+          })
+          page.on('framenavigated', -> (frame) {
+            @last_response = @all_responses[frame.url]
+            @all_responses.clear
           })
         end
       end
@@ -101,6 +110,28 @@ module Capybara
         @playwright_page.query_selector_all(query).map do |el|
           Node.new(@driver, @playwright_page, el)
         end
+      end
+
+      class Headers < Hash
+        def [](key)
+          # Playwright accepts lower-cased keys.
+          # However allow users to specify "Content-Type" or "User-Agent".
+          super(key.downcase)
+        end
+      end
+
+      def response_headers
+        headers = @last_response&.headers || {}
+
+        Headers.new.tap do |h|
+          headers.each do |key, value|
+            h[key] = value
+          end
+        end
+      end
+
+      def status_code
+        @last_response&.status.to_i
       end
 
       def html
@@ -157,8 +188,6 @@ module Capybara
         @playwright_page.screenshot(path: path)
       end
 
-      undefined_method :response_headers
-      undefined_method :status_code
       undefined_method :send_keys
       undefined_method :switch_to_frame
 

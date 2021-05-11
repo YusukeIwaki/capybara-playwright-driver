@@ -66,6 +66,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'window/window_spec.rb',
     'window/windows_spec.rb',
     'window/within_window_spec.rb',
+    'headers_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next
