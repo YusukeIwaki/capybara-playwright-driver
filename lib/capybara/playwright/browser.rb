@@ -188,7 +188,10 @@ module Capybara
         @playwright_page.screenshot(path: path)
       end
 
-      undefined_method :send_keys
+      def send_keys(*args)
+        Node::SendKeys.new(@playwright_page.keyboard, args).execute
+      end
+
       undefined_method :switch_to_frame
 
       private def assert_page_alive

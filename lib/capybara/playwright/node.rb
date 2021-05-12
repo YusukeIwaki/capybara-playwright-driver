@@ -400,8 +400,8 @@ module Capybara
           command: 'Meta',
         }
 
-        def initialize(element, keys)
-          @element = element
+        def initialize(element_or_keyboard, keys)
+          @element_or_keyboard = element_or_keyboard
 
           holding_keys = []
           @executables = keys.each_with_object([]) do |key, executables|
@@ -467,7 +467,7 @@ module Capybara
 
         def execute
           @executables.each do |executable|
-            executable.execute_for(@element)
+            executable.execute_for(@element_or_keyboard)
           end
         end
 
