@@ -19,9 +19,6 @@ module Capybara
         @playwright_browser = browser_type.launch(**browser_options)
         @page_options = page_options
         @playwright_page = create_page(create_browser_context)
-
-        @all_responses = {}
-        @last_response = nil
       end
 
       private def create_browser_context
@@ -40,13 +37,6 @@ module Capybara
             if @playwright_page
               @playwright_page = nil
             end
-          })
-          page.on('response', -> (response) {
-            @all_responses[response.url] = response
-          })
-          page.on('framenavigated', -> (frame) {
-            @last_response = @all_responses[frame.url]
-            @all_responses.clear
           })
         end
       end
@@ -98,27 +88,8 @@ module Capybara
         end
       end
 
-      class Headers < Hash
-        def [](key)
-          # Playwright accepts lower-cased keys.
-          # However allow users to specify "Content-Type" or "User-Agent".
-          super(key.downcase)
-        end
-      end
-
-      def response_headers
-        headers = @last_response&.headers || {}
-
-        Headers.new.tap do |h|
-          headers.each do |key, value|
-            h[key] = value
-          end
-        end
-      end
-
-      def status_code
-        @last_response&.status.to_i
-      end
+      def_delegator(:@playwright_page, :response_headers)
+      def_delegator(:@playwright_page, :status_code)
 
       def html
         assert_page_alive
