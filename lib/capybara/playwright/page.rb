@@ -7,6 +7,9 @@ module Capybara
       end
 
       private def capybara_initialize
+        @all_responses = {}
+        @last_response = nil
+
         on('dialog', -> (dialog) {
           dialog_event_handler.handle_dialog(dialog)
         })
@@ -14,6 +17,13 @@ module Capybara
           dest = File.join(Capybara.save_path, download.suggested_filename)
           # download.save_as blocks main thread until download completes.
           Thread.new(dest) { |_dest| download.save_as(_dest) }
+        })
+        on('response', -> (response) {
+          @all_responses[response.url] = response
+        })
+        on('framenavigated', -> (frame) {
+          @last_response = @all_responses[frame.url]
+          @all_responses.clear
         })
       end
 
@@ -120,6 +130,28 @@ module Capybara
             raise Capybara::ModalNotFound
           end
         end
+      end
+
+      class Headers < Hash
+        def [](key)
+          # Playwright accepts lower-cased keys.
+          # However allow users to specify "Content-Type" or "User-Agent".
+          super(key.downcase)
+        end
+      end
+
+      def response_headers
+        headers = @last_response&.headers || {}
+
+        Headers.new.tap do |h|
+          headers.each do |key, value|
+            h[key] = value
+          end
+        end
+      end
+
+      def status_code
+        @last_response&.status.to_i
       end
     end
     ::Playwright::Page.prepend(PageExtension)
