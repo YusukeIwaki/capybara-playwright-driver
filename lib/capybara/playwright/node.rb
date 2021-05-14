@@ -609,11 +609,82 @@ module Capybara
       end
 
       def scroll_by(x, y)
-        raise NotImplementedError
+        js = <<~JAVASCRIPT
+        (el, [x, y]) => {
+          if (el.scrollBy){
+            el.scrollBy(x, y);
+          } else {
+            el.scrollTop = el.scrollTop + y;
+            el.scrollLeft = el.scrollLeft + x;
+          }
+        }
+        JAVASCRIPT
+
+        @element.evaluate(js, arg: [x, y])
       end
 
-      def scroll_to(element, alignment, position = nil)
-        raise NotImplementedError
+      def scroll_to(element, location, position = nil)
+        # location, element = element, nil if element.is_a? Symbol
+        if element.is_a? Capybara::Playwright::Node
+          scroll_element_to_location(element, location)
+        elsif location.is_a? Symbol
+          scroll_to_location(location)
+        else
+          scroll_to_coords(*position)
+        end
+
+        self
+      end
+
+      private def scroll_element_to_location(element, location)
+        scroll_opts =
+          case location
+          when :top
+            'true'
+          when :bottom
+            'false'
+          when :center
+            "{behavior: 'instant', block: 'center'}"
+          else
+            raise ArgumentError, "Invalid scroll_to location: #{location}"
+          end
+
+        element.native.evaluate("(el) => { el.scrollIntoView(#{scroll_opts}) }")
+      end
+
+      SCROLL_POSITIONS = {
+        top: '0',
+        bottom: 'el.scrollHeight',
+        center: '(el.scrollHeight - el.clientHeight)/2'
+      }.freeze
+
+      private def scroll_to_location(location)
+        position = SCROLL_POSITIONS[location]
+
+        @element.evaluate(<<~JAVASCRIPT)
+        (el) => {
+          if (el.scrollTo){
+            el.scrollTo(0, #{position});
+          } else {
+            el.scrollTop = #{position};
+          }
+        }
+        JAVASCRIPT
+      end
+
+      private def scroll_to_coords(x, y)
+        js = <<~JAVASCRIPT
+        (el, [x, y]) => {
+          if (el.scrollTo){
+            el.scrollTo(x, y);
+          } else {
+            el.scrollTop = y;
+            el.scrollLeft = x;
+          }
+        }
+        JAVASCRIPT
+
+        @element.evaluate(js, arg: [x, y])
       end
 
       def tag_name
