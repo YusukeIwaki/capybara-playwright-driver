@@ -25,9 +25,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   when /Playwright node #obscured\?/,
        /Playwright node #drag_to/,
        /Element#drop/,
-       /Playwright node #evaluate_async_script/,
-       /within_frame/,
-       /should leave correct scopes after execution in case of error/
+       /Playwright node #evaluate_async_script/
     pending 'not implemented'
   when /Playwright Capybara::Window#maximize/,
        /Playwright Capybara::Window#fullscreen/
@@ -67,6 +65,10 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'window/windows_spec.rb',
     'window/within_window_spec.rb',
     'headers_spec.rb',
+    'frame/frame/frame_title_spec.rb',
+    'frame/frame_url_spec.rb',
+    'frame/switch_to_frame_spec.rb',
+    'frame/within_frame_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next

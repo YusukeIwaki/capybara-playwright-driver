@@ -7,11 +7,12 @@ module Capybara
       end
 
       private def capybara_initialize
-        @all_responses = {}
-        @last_response = nil
+        @capybara_all_responses = {}
+        @capybara_last_response = nil
+        @capybara_frames = []
 
         on('dialog', -> (dialog) {
-          dialog_event_handler.handle_dialog(dialog)
+          capybara_dialog_event_handler.handle_dialog(dialog)
         })
         on('download', -> (download) {
           dest = File.join(Capybara.save_path, download.suggested_filename)
@@ -19,21 +20,21 @@ module Capybara
           Thread.new(dest) { |_dest| download.save_as(_dest) }
         })
         on('response', -> (response) {
-          @all_responses[response.url] = response
+          @capybara_all_responses[response.url] = response
         })
         on('framenavigated', -> (frame) {
-          @last_response = @all_responses[frame.url]
-          @all_responses.clear
+          @capybara_last_response = @capybara_all_responses[frame.url]
+          @capybara_all_responses.clear
         })
       end
 
-      private def dialog_event_handler
-        @dialog_event_handler ||= DialogEventHandler.new.tap do |h|
-          h.default_handler = method(:on_unexpected_modal)
+      private def capybara_dialog_event_handler
+        @capybara_dialog_event_handler ||= DialogEventHandler.new.tap do |h|
+          h.default_handler = method(:capybara_on_unexpected_modal)
         end
       end
 
-      private def on_unexpected_modal(dialog)
+      private def capybara_on_unexpected_modal(dialog)
         puts "[WARNING] Unexpected modal - \"#{dialog.message}\""
         if dialog.type == 'beforeunload'
           dialog.accept_async
@@ -78,7 +79,7 @@ module Capybara
         end
       end
 
-      def accept_modal(dialog_type, **options, &block)
+      def capybara_accept_modal(dialog_type, **options, &block)
         timeout_sec = options[:wait]
         acceptor = DialogAcceptor.new(dialog_type, options)
         matcher = DialogMessageMatcher.new(options[:text])
@@ -93,7 +94,7 @@ module Capybara
             dialog.dismiss
           end
         }
-        dialog_event_handler.with_handler(handler) do
+        capybara_dialog_event_handler.with_handler(handler) do
           block.call
 
           message = message_promise.value!(timeout_sec)
@@ -106,7 +107,7 @@ module Capybara
         end
       end
 
-      def dismiss_modal(dialog_type, **options, &block)
+      def capybara_dismiss_modal(dialog_type, **options, &block)
         timeout_sec = options[:wait]
         matcher = DialogMessageMatcher.new(options[:text])
         message_promise = Concurrent::Promises.resolvable_future
@@ -119,7 +120,7 @@ module Capybara
           end
           dialog.dismiss
         }
-        dialog_event_handler.with_handler(handler) do
+        capybara_dialog_event_handler.with_handler(handler) do
           block.call
 
           message = message_promise.value!(timeout_sec)
@@ -140,8 +141,8 @@ module Capybara
         end
       end
 
-      def response_headers
-        headers = @last_response&.headers || {}
+      def capybara_response_headers
+        headers = @capybara_last_response&.headers || {}
 
         Headers.new.tap do |h|
           headers.each do |key, value|
@@ -150,8 +151,25 @@ module Capybara
         end
       end
 
-      def status_code
-        @last_response&.status.to_i
+      def capybara_status_code
+        @capybara_last_response&.status.to_i
+      end
+
+      def capybara_reset_frames
+        @capybara_frames.clear
+      end
+
+      # @param frame [Playwright::Frame]
+      def capybara_push_frame(frame)
+        @capybara_frames << frame
+      end
+
+      def capybara_pop_frame
+        @capybara_frames.pop
+      end
+
+      def capybara_current_frame
+        @capybara_frames.last || main_frame
       end
     end
     ::Playwright::Page.prepend(PageExtension)
