@@ -74,6 +74,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'frame/frame_url_spec.rb',
     'frame/switch_to_frame_spec.rb',
     'frame/within_frame_spec.rb',
+    'attach_file_spec.rb',
   ]
   if includes.any? { |filename| example.metadata[:file_path].end_with?("/#{filename}") }
     next
