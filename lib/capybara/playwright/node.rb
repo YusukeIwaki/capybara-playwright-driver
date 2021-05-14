@@ -148,7 +148,7 @@ module Capybara
             when 'checkbox'
               Checkbox
             when 'file'
-              raise NotImplementedError
+              FileUpload
             when 'date'
               raise NotImplementedError
             when 'time'
@@ -207,6 +207,12 @@ module Capybara
           raise if @element.editable?
 
           puts "[INFO] Node#set: element is not editable. #{@element}"
+        end
+      end
+
+      class FileUpload < Settable
+        def set(value, **options)
+          @element.set_input_files(value, timeout: @timeout)
         end
       end
 
