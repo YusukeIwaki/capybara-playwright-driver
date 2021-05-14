@@ -23,8 +23,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   when /Playwright #click_link can download a file/,
        /Playwright #response_headers should return response headers/
     pending if ENV['CI'] # Something is wrong only in GitHub Actions...?
-  when /Playwright node #obscured\?/,
-       /Playwright node #drag_to/,
+  when /Playwright node #drag_to/,
        /Element#drop/,
        /Playwright node #evaluate_async_script/
     pending 'not implemented'

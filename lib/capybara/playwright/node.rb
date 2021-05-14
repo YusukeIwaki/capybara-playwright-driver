@@ -27,6 +27,35 @@ module Capybara
   end
   Node::Element.prepend(WithElementHandlePatch)
 
+  module CapybaraObscuredPatch
+    # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L523
+    OBSCURED_OR_OFFSET_SCRIPT = <<~JAVASCRIPT
+    (el, [x, y]) => {
+      var box = el.getBoundingClientRect();
+      if (!x && x != 0) x = box.width/2;
+      if (!y && y != 0) y = box.height/2;
+      var px = box.left + x,
+          py = box.top + y,
+          e = document.elementFromPoint(px, py);
+      if (!el.contains(e))
+        return true;
+      return { x: px, y: py };
+    }
+    JAVASCRIPT
+
+    def capybara_obscured?(x: nil, y: nil)
+      res = evaluate(OBSCURED_OR_OFFSET_SCRIPT, arg: [x, y])
+      return true if res == true
+
+      # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/driver.rb#L182
+      frame = owner_frame
+      return false unless frame.parent_frame
+
+      frame.frame_element.capybara_obscured?(x: res['x'], y: res['y'])
+    end
+  end
+  ::Playwright::ElementHandle.prepend(CapybaraObscuredPatch)
+
   module Playwright
     # Selector and checking methods are derived from twapole/apparition
     # Action methods (click, select_option, ...) uses playwright.
@@ -624,9 +653,7 @@ module Capybara
       end
 
       def obscured?
-        # Playwright checks actionability automatically.
-        # In most cases, checking obscured? manually is not required.
-        raise NotSupportedByDriverError, 'Capybara::Driver::Node#obscured?'
+        @element.capybara_obscured?
       end
 
       def checked?
