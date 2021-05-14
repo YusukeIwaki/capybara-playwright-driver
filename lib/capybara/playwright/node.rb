@@ -150,15 +150,15 @@ module Capybara
             when 'file'
               FileUpload
             when 'date'
-              raise NotImplementedError
+              DateInput
             when 'time'
-              raise NotImplementedError
+              TimeInput
             when 'datetime-local'
-              raise NotImplementedError
+              DateTimeInput
             when 'color'
-              raise NotImplementedError
+              JSValueInput
             when 'range'
-              raise NotImplementedError
+              JSValueInput
             else
               TextInput
             end
@@ -168,7 +168,7 @@ module Capybara
             if @element.editable?
               TextInput
             else
-              raise NotImplementedError
+              raise NotSupportedByDriverError
             end
           end
 
@@ -202,7 +202,7 @@ module Capybara
 
       class TextInput < Settable
         def set(value, **options)
-          @element.fill(value, timeout: @timeout)
+          @element.fill(value.to_s, timeout: @timeout)
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
 
@@ -213,6 +213,70 @@ module Capybara
       class FileUpload < Settable
         def set(value, **options)
           @element.set_input_files(value, timeout: @timeout)
+        end
+      end
+
+      module UpdateValueJS
+        def update_value_js(element, value)
+          # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L343
+          js = <<~JAVASCRIPT
+          (el, value) => {
+            if (el.readOnly) { return };
+            if (document.activeElement !== el){
+              el.focus();
+            }
+            if (el.value != value) {
+              el.value = value;
+              el.dispatchEvent(new InputEvent('input'));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
+          JAVASCRIPT
+          element.evaluate(js, arg: value)
+        end
+      end
+
+      class DateInput < Settable
+        include UpdateValueJS
+
+        def set(value, **options)
+          if !value.is_a?(String) && value.respond_to?(:to_date)
+            update_value_js(@element, value.to_date.iso8601)
+          else
+            @element.fill(value.to_s, timeout: @timeout)
+          end
+        end
+      end
+
+      class TimeInput < Settable
+        include UpdateValueJS
+
+        def set(value, **options)
+          if !value.is_a?(String) && value.respond_to?(:to_time)
+            update_value_js(@element, value.to_time.strftime('%H:%M'))
+          else
+            @element.fill(value.to_s, timeout: @timeout)
+          end
+        end
+      end
+
+      class DateTimeInput < Settable
+        include UpdateValueJS
+
+        def set(value, **options)
+          if !value.is_a?(String) && value.respond_to?(:to_time)
+            update_value_js(@element, value.to_time.strftime('%Y-%m-%dT%H:%M'))
+          else
+            @element.fill(value.to_s, timeout: @timeout)
+          end
+        end
+      end
+
+      class JSValueInput < Settable
+        include UpdateValueJS
+
+        def set(value, **options)
+          update_value_js(@element, value)
         end
       end
 
