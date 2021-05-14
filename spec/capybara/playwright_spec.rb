@@ -37,6 +37,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
 
   includes = [ # https://github.com/teamcapybara/capybara/tree/master/lib/capybara/spec/session
     'node_spec.rb',
+    'fill_in_spec.rb',
     'element/assert_match_selector_spec.rb',
     'element/match_css_spec.rb',
     'element/match_xpath_spec.rb',
