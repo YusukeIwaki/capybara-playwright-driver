@@ -48,7 +48,7 @@ module Capybara
       def current_url
         assert_page_alive
 
-        @playwright_page.url
+        @playwright_page.capybara_current_frame.url
       end
 
       def visit(path)
@@ -63,19 +63,19 @@ module Capybara
             path
           end
 
-        @playwright_page.goto(url)
+        @playwright_page.capybara_current_frame.goto(url)
       end
 
       def refresh
         assert_page_alive
 
-        @playwright_page.evaluate('() => { location.reload(true) }')
+        @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
       end
 
       def find_xpath(query, **options)
         assert_page_alive
 
-        @playwright_page.query_selector_all("xpath=#{query}").map do |el|
+        @playwright_page.capybara_current_frame.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @puppeteer_page, el)
         end
       end
@@ -83,13 +83,22 @@ module Capybara
       def find_css(query, **options)
         assert_page_alive
 
-        @playwright_page.query_selector_all(query).map do |el|
+        @playwright_page.capybara_current_frame.query_selector_all(query).map do |el|
           Node.new(@driver, @playwright_page, el)
         end
       end
 
-      def_delegator(:@playwright_page, :response_headers)
-      def_delegator(:@playwright_page, :status_code)
+      def response_headers
+        assert_page_alive
+
+        @playwright_page.capybara_response_headers
+      end
+
+      def status_code
+        assert_page_alive
+
+        @playwright_page.capybara_status_code
+      end
 
       def html
         assert_page_alive
@@ -102,13 +111,13 @@ module Capybara
           return html;
         }
         JAVASCRIPT
-        @playwright_page.evaluate(js)
+        @playwright_page.capybara_current_frame.evaluate(js)
       end
 
       def title
         assert_page_alive
 
-        @playwright_page.title
+        @playwright_page.capybara_current_frame.title
       end
 
       def go_back
@@ -126,14 +135,14 @@ module Capybara
       def execute_script(script, *args)
         assert_page_alive
 
-        @playwright_page.evaluate("function (arguments) { #{script} }", arg: unwrap_node(args))
+        @playwright_page.capybara_current_frame.evaluate("function (arguments) { #{script} }", arg: unwrap_node(args))
         nil
       end
 
       def evaluate_script(script, *args)
         assert_page_alive
 
-        result = @playwright_page.evaluate_handle("function (arguments) { return #{script} }", arg: unwrap_node(args))
+        result = @playwright_page.capybara_current_frame.evaluate_handle("function (arguments) { return #{script} }", arg: unwrap_node(args))
         wrap_node(result)
       end
 
@@ -149,7 +158,20 @@ module Capybara
         Node::SendKeys.new(@playwright_page.keyboard, args).execute
       end
 
-      undefined_method :switch_to_frame
+      def switch_to_frame(frame)
+        assert_page_alive
+
+        case frame
+        when :top
+          @playwright_page.capybara_reset_frames
+        when :parent
+          @playwright_page.capybara_pop_frame
+        else
+          playwright_frame = frame.native.content_frame
+          raise ArgumentError.new("Not a frame element: #{frame}") unless playwright_frame
+          @playwright_page.capybara_push_frame(playwright_frame)
+        end
+      end
 
       private def assert_page_alive
         if !@playwright_page || @playwright_page.closed?
@@ -238,8 +260,17 @@ module Capybara
         end
       end
 
-      def_delegator(:@playwright_page, :accept_modal)
-      def_delegator(:@playwright_page, :dismiss_modal)
+      def accept_modal(dialog_type, **options, &block)
+        assert_page_alive
+
+        @playwright_page.capybara_accept_modal(dialog_type, **options, &block)
+      end
+
+      def dismiss_modal(dialog_type, **options, &block)
+        assert_page_alive
+
+        @playwright_page.capybara_dismiss_modal(dialog_type, **options, &block)
+      end
 
       private def unwrap_node(args)
         args.map do |arg|
