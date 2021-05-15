@@ -154,7 +154,7 @@ module Capybara
           let args = Array.prototype.slice.call(_arguments);
           return new Promise((resolve, reject) => {
             args.push(resolve);
-            (function(){ return #{script} }).apply(this, args);
+            (function(){ #{script} }).apply(this, args);
           });
         }
         JAVASCRIPT
