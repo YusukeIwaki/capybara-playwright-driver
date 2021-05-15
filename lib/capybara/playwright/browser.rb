@@ -146,7 +146,21 @@ module Capybara
         wrap_node(result)
       end
 
-      undefined_method :evaluate_async_script
+      def evaluate_async_script(script, *args)
+        assert_page_alive
+
+        js = <<~JAVASCRIPT
+        function(_arguments){
+          let args = Array.prototype.slice.call(_arguments);
+          return new Promise((resolve, reject) => {
+            args.push(resolve);
+            (function(){ #{script} }).apply(this, args);
+          });
+        }
+        JAVASCRIPT
+        result = @playwright_page.capybara_current_frame.evaluate_handle(js, arg: unwrap_node(args))
+        wrap_node(result)
+      end
 
       def save_screenshot(path, **options)
         assert_page_alive
