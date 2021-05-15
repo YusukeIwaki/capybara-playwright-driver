@@ -48,7 +48,7 @@ module Capybara
       def current_url
         assert_page_alive
 
-        @playwright_page.capybara_current_frame.url
+        @playwright_page.url
       end
 
       def visit(path)
@@ -117,7 +117,7 @@ module Capybara
       def title
         assert_page_alive
 
-        @playwright_page.capybara_current_frame.title
+        @playwright_page.title
       end
 
       def go_back
