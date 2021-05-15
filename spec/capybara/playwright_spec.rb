@@ -24,8 +24,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
        /Playwright #response_headers should return response headers/
     pending if ENV['CI'] # Something is wrong only in GitHub Actions...?
   when /Playwright node #drag_to/,
-       /Element#drop/,
-       /Playwright node #evaluate_async_script/
+       /Element#drop/
     pending 'not implemented'
   when /Playwright Capybara::Window#maximize/,
        /Playwright Capybara::Window#fullscreen/
@@ -36,6 +35,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
 
   includes = [ # https://github.com/teamcapybara/capybara/tree/master/lib/capybara/spec/session
     'node_spec.rb',
+    'evaluate_async_script_spec.rb',
     'scroll_spec.rb',
     'fill_in_spec.rb',
     'element/assert_match_selector_spec.rb',
