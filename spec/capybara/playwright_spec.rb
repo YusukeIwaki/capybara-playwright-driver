@@ -20,8 +20,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     pending 'evaluateHandle does not work with Array.'
   when /when details is toggled open and closed/
     pending "NoMethodError: undefined method `and' for #<Capybara::RSpecMatchers::Matchers::HaveSelector:0x00007f9bafd56900>"
-  when /Playwright #click_link can download a file/,
-       /Playwright #response_headers should return response headers/
+  when /Playwright #click_link can download a file/
     pending if ENV['CI'] # Something is wrong only in GitHub Actions...?
   when /Playwright node #drag_to/,
        /Element#drop/
@@ -74,6 +73,7 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
     'window/windows_spec.rb',
     'window/within_window_spec.rb',
     'headers_spec.rb',
+    'response_code_spec.rb',
     'frame/frame/frame_title_spec.rb',
     'frame/frame_url_spec.rb',
     'frame/switch_to_frame_spec.rb',
