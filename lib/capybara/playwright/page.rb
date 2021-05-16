@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module Capybara
   module Playwright
     module PageExtension
@@ -15,6 +17,7 @@ module Capybara
           capybara_dialog_event_handler.handle_dialog(dialog)
         })
         on('download', -> (download) {
+          FileUtils.mkdir_p(Capybara.save_path)
           dest = File.join(Capybara.save_path, download.suggested_filename)
           # download.save_as blocks main thread until download completes.
           Thread.new(dest) { |_dest| download.save_as(_dest) }
