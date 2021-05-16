@@ -29,7 +29,7 @@ jobs:
       - run:
           name: Setup playwright driver
           command: |
-            npm install playwright@next
+            npm install playwright
             ./node_modules/.bin/playwright install
       - run:
           name: RSpec

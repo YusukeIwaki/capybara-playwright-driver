@@ -17,7 +17,7 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
-          npm install playwright@next
+          npm install playwright
           ./node_modules/.bin/playwright install
       - run: bundle exec rspec spec/feature/
         env:
