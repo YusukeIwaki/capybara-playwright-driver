@@ -2,6 +2,6 @@
 
 module Capybara
   module Playwright
-    VERSION = '0.1.0'
+    VERSION = '0.0.0-r1'
   end
 end
