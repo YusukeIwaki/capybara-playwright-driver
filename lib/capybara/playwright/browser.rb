@@ -3,13 +3,6 @@ module Capybara
     class Browser
       extend Forwardable
 
-      def self.undefined_method(name)
-        define_method(name) do |*args, **kwargs|
-          puts "call #{name}(args=#{args}, kwargs=#{kwargs})"
-          raise NotImplementedError.new("Capybara::Playwright::Browser##{name} is not implemented!")
-        end
-      end
-
       class NoSuchWindowError < StandardError ; end
 
       def initialize(playwright:, driver:, browser_type:, browser_options:, page_options:)
