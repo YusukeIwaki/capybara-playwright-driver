@@ -85,6 +85,8 @@ module Capybara
           raise StaleReferenceError.new(err)
         when /Cannot find context with specified id/
           raise StaleReferenceError.new(err)
+        when /Unable to adopt element handle from a different document/ # for WebKit.
+          raise StaleReferenceError.new(err)
         else
           raise
         end
