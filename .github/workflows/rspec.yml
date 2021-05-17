@@ -27,7 +27,7 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
-        timeout-minutes: 30
+        timeout-minutes: 100
   example_spec:
     name: Example
     runs-on: ubuntu-latest
