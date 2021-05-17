@@ -7,10 +7,7 @@ module TestSessions
   Playwright = Capybara::Session.new(:playwright, TestApp)
 end
 
-skipped_tests = %i[
-
-]
-Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_skip: skipped_tests do |example|
+Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |example|
   case example.metadata[:full_description]
   when /should offset outside (the|from center of) element/
     pending 'Playwright does not allow to click outside the element'
@@ -26,6 +23,11 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright', capybara_
   when /Playwright Capybara::Window#maximize/,
        /Playwright Capybara::Window#fullscreen/
     skip 'not supported in Playwright driver'
+  when /Playwright #has_field with validation message/
+    # HTML5 validation message is a bit different.
+    #  expected: /match the requested format/
+    #  obserbed: "Match the requested format"
+    pending 'HTML5 validation message is a bit different.' if ENV['BROWSER'] == 'webkit'
   end
 
   Capybara::SpecHelper.reset!
