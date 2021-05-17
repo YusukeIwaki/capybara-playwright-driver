@@ -2,7 +2,11 @@ name: RSpec
 on: [pull_request]
 jobs:
   playwright_driver_spec:
-    name: Playwright Driver
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit, firefox]
+    name: (${{ matrix.browser }}) Playwright Driver
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -21,6 +25,7 @@ jobs:
           ./node_modules/.bin/playwright install
       - run: bundle exec rspec spec/capybara/
         env:
+          BROWSER: ${{ matrix.browser }}
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 30
   example_spec:
