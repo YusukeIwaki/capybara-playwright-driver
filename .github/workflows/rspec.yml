@@ -29,14 +29,24 @@ jobs:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 100
   example_spec:
-    name: Example
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby_version:
+          - 2.3.8
+          - 2.4.10
+          - 2.5.9
+          - 2.6.7
+          - 2.7.3
+          - 3.0.1
+    name: (${{ matrix.ruby_version }}) Example
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.7.3
+          ruby-version: ${{ matrix.ruby_version }}
           bundler-cache: true
       - uses: actions/setup-node@v1
         with:
