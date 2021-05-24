@@ -29,14 +29,23 @@ jobs:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 100
   example_spec:
-    name: Example
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby_version:
+          - 2.4.10
+          - 2.5.9
+          - 2.6.7
+          - 2.7.3
+          - 3.0.1
+    name: (${{ matrix.ruby_version }}) Example
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.7.3
+          ruby-version: ${{ matrix.ruby_version }}
           bundler-cache: true
       - uses: actions/setup-node@v1
         with:
@@ -44,7 +53,8 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
-          npm install playwright
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
       - run: bundle exec rspec spec/feature/
         env:

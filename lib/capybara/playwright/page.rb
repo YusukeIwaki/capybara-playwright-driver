@@ -4,7 +4,11 @@ module Capybara
   module Playwright
     module PageExtension
       def initialize(*args, **kwargs)
-        super
+        if kwargs.empty?
+          super(*args)
+        else
+          super(*args, **kwargs)
+        end
         capybara_initialize
       end
 
