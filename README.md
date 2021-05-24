@@ -1,4 +1,8 @@
+[![Gem Version](https://badge.fury.io/rb/capybara-playwright-driver.svg)](https://badge.fury.io/rb/capybara-playwright-driver)
+
 # 🎭 Playwright driver for Capybara
+
+#### [Docs](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration)
 
 ```ruby
 gem 'capybara-playwright-driver'
