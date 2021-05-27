@@ -40,14 +40,23 @@ RSpec.describe 'Example' do
     visit '/'
     fill_in('q', with: 'Capybara')
 
-    ## [REMARK] Use Playwright-native Page instead of flaky Capybara's selector/action.
-    # find('a[data-item-type="global_search"]').click
+    find('a[data-item-type="global_search"]').click
+
+    all('.repo-list-item').each do |li|
+      puts "#{li.all('a').first.text} by Capybara"
+    end
+  end
+
+  it 'search capybara using Playwright-native selector and action' do
+    Capybara.app_host = 'https://github.com'
+    visit '/'
+    fill_in('q', with: 'Capybara')
+
     page.driver.with_playwright_page do |page|
       page.click('a[data-item-type="global_search"]')
     end
 
     all('.repo-list-item').each do |li|
-      puts "#{li.all('a').first.text} by Capybara"
       puts "#{li.with_playwright_element_handle { |handle| handle.query_selector('a').text_content }} by Playwright"
     end
   end
