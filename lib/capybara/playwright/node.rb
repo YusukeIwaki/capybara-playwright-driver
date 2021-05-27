@@ -696,6 +696,8 @@ module Capybara
       end
 
       def visible?
+        assert_element_not_stale
+
         # if an area element, check visibility of relevant image
         @element.evaluate(<<~JAVASCRIPT)
         function(el) {
@@ -732,10 +734,14 @@ module Capybara
       end
 
       def checked?
+        assert_element_not_stale
+
         @element.evaluate('el => !!el.checked')
       end
 
       def selected?
+        assert_element_not_stale
+
         @element.evaluate('el => !!el.selected')
       end
 
