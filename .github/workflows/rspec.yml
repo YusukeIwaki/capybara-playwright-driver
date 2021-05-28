@@ -21,7 +21,8 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
-          npm install playwright
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
       - run: bundle exec rspec spec/capybara/
         env:
@@ -53,7 +54,7 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
-          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
       - run: bundle exec rspec spec/feature/
