@@ -69,7 +69,7 @@ module Capybara
         assert_page_alive
 
         @playwright_page.capybara_current_frame.query_selector_all("xpath=#{query}").map do |el|
-          Node.new(@driver, @puppeteer_page, el)
+          Node.new(@driver, @playwright_page, el)
         end
       end
 
@@ -300,7 +300,7 @@ module Capybara
             [key, wrap_node(value)]
           end.to_h
         when ::Playwright::ElementHandle
-          Node.new(@driver, @puppeteer_page, arg)
+          Node.new(@driver, @playwright_page, arg)
         when ::Playwright::JSHandle
           arg.json_value
         else

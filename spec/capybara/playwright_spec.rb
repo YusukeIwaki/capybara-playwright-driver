@@ -17,9 +17,10 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
     pending 'evaluateHandle does not work with Array.'
   when /when details is toggled open and closed/
     pending "NoMethodError: undefined method `and' for #<Capybara::RSpecMatchers::Matchers::HaveSelector:0x00007f9bafd56900>"
-  when /Playwright node #drag_to/,
-       /Element#drop/
+  when /Element#drop/
     pending 'not implemented'
+  when /drag_to.*HTML5/
+    skip 'not supported yet in Playwright driver'
   when /Playwright Capybara::Window#maximize/,
        /Playwright Capybara::Window#fullscreen/
     skip 'not supported in Playwright driver'

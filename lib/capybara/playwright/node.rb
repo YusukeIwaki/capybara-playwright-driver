@@ -406,8 +406,11 @@ module Capybara
 
         MODIFIERS = {
           alt: 'Alt',
+          ctrl: 'Control',
           control: 'Control',
           meta: 'Meta',
+          command: 'Meta',
+          cmd: 'Meta',
           shift: 'Shift',
         }.freeze
 
@@ -440,8 +443,11 @@ module Capybara
       class SendKeys
         MODIFIERS = {
           alt: 'Alt',
+          ctrl: 'Control',
           control: 'Control',
           meta: 'Meta',
+          command: 'Meta',
+          cmd: 'Meta',
           shift: 'Shift',
         }.freeze
 
@@ -576,7 +582,7 @@ module Capybara
 
         class PressKey
           def initialize(key:, modifiers:)
-            puts "PressKey: key=#{key} modifiers: #{modifiers}"
+            # puts "PressKey: key=#{key} modifiers: #{modifiers}"
             if modifiers.empty?
               @key = key
             else
@@ -605,7 +611,77 @@ module Capybara
       end
 
       def drag_to(element, **options)
-        raise NotImplementedError
+        DragTo.new(@page, @element, element.element, options).execute
+      end
+
+      class DragTo
+        MODIFIERS = {
+          alt: 'Alt',
+          ctrl: 'Control',
+          control: 'Control',
+          meta: 'Meta',
+          command: 'Meta',
+          cmd: 'Meta',
+          shift: 'Shift',
+        }.freeze
+
+        # @param page [Playwright::Page]
+        # @param source [Playwright::ElementHandle]
+        # @param target [Playwright::ElementHandle]
+        def initialize(page, source, target, options)
+          @page = page
+          @source = source
+          @target = target
+          @options = options
+        end
+
+        def execute
+          @source.scroll_into_view_if_needed
+
+          # down
+          position_from = center_of(@source)
+          @page.mouse.move(*position_from)
+          @page.mouse.down
+
+          @target.scroll_into_view_if_needed
+
+          # move and up
+          sleep_delay
+          position_to = center_of(@target)
+          with_key_pressing(drop_modifiers) do
+            @page.mouse.move(*position_to, steps: 6)
+            sleep_delay
+            @page.mouse.up
+          end
+          sleep_delay
+        end
+
+        # @param element [Playwright::ElementHandle]
+        private def center_of(element)
+          box = element.bounding_box
+          [box["x"] + box["width"] / 2, box["y"] + box["height"] / 2]
+        end
+
+        private def with_key_pressing(keys, &block)
+          keys.each { |key| @page.keyboard.down(key) }
+          block.call
+          keys.each { |key| @page.keyboard.up(key) }
+        end
+
+        # @returns Array<String>
+        private def drop_modifiers
+          return [] unless @options[:drop_modifiers]
+
+          Array(@options[:drop_modifiers]).map do |key|
+            MODIFIERS[key.to_sym]  or raise ArgumentError.new("Unknown modifier key: #{key}")
+          end
+        end
+
+        private def sleep_delay
+          return unless @options[:delay]
+
+          sleep @options[:delay]
+        end
       end
 
       def drop(*args)
