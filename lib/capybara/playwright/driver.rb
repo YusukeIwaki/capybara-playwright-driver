@@ -6,6 +6,7 @@ module Capybara
       def initialize(app, **options)
         @playwright_cli_executable_path = options[:playwright_cli_executable_path] || 'npx playwright'
         @browser_type = options[:browser_type] || :chromium
+        @dispose_browser_on_reset = options[:dispose_browser_on_reset]
         unless %i(chromium firefox webkit).include?(@browser_type)
           raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
         end
@@ -50,8 +51,12 @@ module Capybara
       end
 
       def reset!
-        quit
-        @browser = nil
+        if @dispose_browser_on_reset
+          quit
+          @browser = nil
+        else
+          @browser.reset!
+        end
       end
 
       def invalid_element_errors
