@@ -18,10 +18,19 @@ module Capybara
       def needs_server?; true; end
 
       def browser
-        @browser ||= create_browser
+        @browser ||= ::Capybara::Playwright::Browser.new(
+          driver: self,
+          playwright_browser: playwright_browser,
+          page_options: @page_options.value,
+        )
       end
 
-      private def create_browser
+      private def playwright_browser
+        @playwright_browser ||= create_playwright_browser
+      end
+
+      private def create_playwright_browser
+        # clean up @playwright_browser and @playwright_execution on exit.
         main = Process.pid
         at_exit do
           # Store the exit status of the test run since it goes away after calling the at_exit proc...
@@ -30,27 +39,28 @@ module Capybara
           exit @exit_status if @exit_status # Force exit with stored status
         end
 
-        @execution = execute_playwright
-        ::Capybara::Playwright::Browser.new(
-          playwright: @execution.playwright,
-          driver: self,
-          browser_type: @browser_type,
-          browser_options: @browser_options.value,
-          page_options: @page_options.value,
+        browser_type = playwright_execution.playwright.send(@browser_type)
+        browser_options = @browser_options.value
+        browser_type.launch(**browser_options)
+      end
+
+      private def playwright_execution
+        @playwright_execution ||= ::Playwright.create(
+          playwright_cli_executable_path: @playwright_cli_executable_path,
         )
       end
 
-      private def execute_playwright
-        ::Playwright.create(playwright_cli_executable_path: @playwright_cli_executable_path)
-      end
-
       private def quit
-        @browser&.quit
-        @execution&.stop
+        @playwright_browser&.close
+        @playwright_browser = nil
+        @playwright_execution&.stop
+        @playwright_execution = nil
       end
 
       def reset!
-        quit
+        # [NOTE] @playwright_browser should keep alive for better performance.
+        # Only `Browser` is disposed.
+        @browser&.clear_browser_contexts
         @browser = nil
       end
 
