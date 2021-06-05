@@ -34,11 +34,6 @@ module Capybara
         end
       end
 
-      def reset!
-        @playwright_browser.contexts.each(&:close)
-        @playwright_page = create_page(create_browser_context)
-      end
-
       def quit
         @playwright_browser.close
       end
