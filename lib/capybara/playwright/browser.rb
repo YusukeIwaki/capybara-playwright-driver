@@ -1,15 +1,19 @@
 module Capybara
   module Playwright
+    # Responsibility of this class is:
+    # - Handling Capybara::Driver commands.
+    # - Managing Playwright browser contexts and pages.
+    #
+    # Note that this class doesn't manage Playwright::Browser.
+    # We should not use Playwright::Browser#close in this class.
     class Browser
       extend Forwardable
 
       class NoSuchWindowError < StandardError ; end
 
-      def initialize(playwright:, driver:, browser_type:, browser_options:, page_options:)
+      def initialize(driver:, playwright_browser:, page_options:)
         @driver = driver
-
-        browser_type = playwright.send(browser_type)
-        @playwright_browser = browser_type.launch(**browser_options)
+        @playwright_browser = playwright_browser
         @page_options = page_options
         @playwright_page = create_page(create_browser_context)
       end
@@ -34,8 +38,8 @@ module Capybara
         end
       end
 
-      def quit
-        @playwright_browser.close
+      def clear_browser_contexts
+        @playwright_browser.contexts.each(&:close)
       end
 
       def current_url
