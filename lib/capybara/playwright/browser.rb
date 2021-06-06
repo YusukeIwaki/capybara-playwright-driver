@@ -1,3 +1,5 @@
+require_relative './tmpdir_owner'
+
 module Capybara
   module Playwright
     # Responsibility of this class is:
@@ -7,14 +9,18 @@ module Capybara
     # Note that this class doesn't manage Playwright::Browser.
     # We should not use Playwright::Browser#close in this class.
     class Browser
+      include TmpdirOwner
       extend Forwardable
 
       class NoSuchWindowError < StandardError ; end
 
-      def initialize(driver:, playwright_browser:, page_options:)
+      def initialize(driver:, playwright_browser:, page_options:, record_video: false)
         @driver = driver
         @playwright_browser = playwright_browser
         @page_options = page_options
+        if record_video
+          @page_options[:record_video_dir] ||= tmpdir
+        end
         @playwright_page = create_page(create_browser_context)
       end
 
@@ -157,6 +163,22 @@ module Capybara
         JAVASCRIPT
         result = @playwright_page.capybara_current_frame.evaluate_handle(js, arg: unwrap_node(args))
         wrap_node(result)
+      end
+
+      # Not used by Capybara::Session.
+      # Intended to be directly called by user.
+      def video_path
+        return nil if !@playwright_page || @playwright_page.closed?
+
+        @playwright_page.video&.path
+      end
+
+      # Not used by Capybara::Session.
+      # Intended to be directly called by user.
+      def raw_screenshot(**options)
+        return nil if !@playwright_page || @playwright_page.closed?
+
+        @playwright_page.screenshot(**options)
       end
 
       def save_screenshot(path, **options)
@@ -314,7 +336,6 @@ module Capybara
 
       def with_playwright_page(&block)
         assert_page_alive
-        raise ArgumentError.new('block must be given') unless block
 
         block.call(@playwright_page)
       end
