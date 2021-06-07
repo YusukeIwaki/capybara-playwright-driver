@@ -22,26 +22,11 @@ RSpec.configure do |config|
 end
 
 Capybara.register_driver(:playwright) do |app|
-  driver = Capybara::Playwright::Driver.new(app,
+  Capybara::Playwright::Driver.new(app,
     playwright_cli_executable_path: ENV['PLAYWRIGHT_CLI_EXECUTABLE_PATH'],
     browser_type: (ENV['BROWSER'] || 'chromium').to_sym,
     headless: ENV['CI'] ? true : false,
   )
-
-  if ENV['CI']
-    driver.on_save_screenrecord do |video_path|
-      next unless defined?(Allure)
-
-      Allure.add_attachment(
-        name: "screenrecord",
-        source: File.read(video_path),
-        type: Allure::ContentType::WEBM,
-        test_case: true,
-      )
-    end
-  end
-
-  driver
 end
 
 Capybara.default_driver = :playwright
