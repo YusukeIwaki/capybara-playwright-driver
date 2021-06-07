@@ -9,6 +9,21 @@ RSpec.describe 'Example' do
     Capybara.default_max_wait_time = previous_wait_time
   end
 
+  if ENV['CI']
+    before do |example|
+      Capybara.current_session.driver.on_save_screenrecord do |video_path|
+        next unless defined?(Allure)
+
+        Allure.add_attachment(
+          name: "screenrecord - #{example.description}",
+          source: File.read(video_path),
+          type: Allure::ContentType::WEBM,
+          test_case: true,
+        )
+      end
+    end
+  end
+
   it 'take a screenshot' do
     Capybara.app_host = 'https://github.com'
     visit '/YusukeIwaki'

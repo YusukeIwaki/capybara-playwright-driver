@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+      - name: setup Allure
+        run: |
+          wget https://github.com/allure-framework/allure2/releases/download/2.14.0/allure_2.14.0-1_all.deb
+          sudo dpkg -i allure_2.14.0-1_all.deb
+          rm allure_2.14.0-1_all.deb
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.7.3
@@ -24,11 +29,17 @@ jobs:
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
-      - run: bundle exec rspec spec/capybara/
+      - run: bundle exec rspec spec/capybara/ --format AllureRspecFormatter --format documentation
         env:
           BROWSER: ${{ matrix.browser }}
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 100
+      - run: allure generate reports/allure-results
+      - uses: actions/upload-artifact@v2
+        with:
+          name: allure-report
+          path: allure-report
+
   example_spec:
     strategy:
       fail-fast: false

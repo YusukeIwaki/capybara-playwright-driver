@@ -1,7 +1,10 @@
+require_relative './driver_extension'
+
 module Capybara
   module Playwright
     class Driver < ::Capybara::Driver::Base
       extend Forwardable
+      include DriverExtension
 
       def initialize(app, **options)
         @playwright_cli_executable_path = options[:playwright_cli_executable_path] || 'npx playwright'
@@ -22,6 +25,7 @@ module Capybara
           driver: self,
           playwright_browser: playwright_browser,
           page_options: @page_options.value,
+          record_video: callback_on_save_screenrecord?,
         )
       end
 
@@ -58,9 +62,26 @@ module Capybara
       end
 
       def reset!
+        # screenshot is available only before closing page.
+        if callback_on_save_screenshot?
+          raw_screenshot = @browser&.raw_screenshot
+          if raw_screenshot
+            callback_on_save_screenshot(raw_screenshot)
+          end
+        end
+
+        # video path can be aquired only before closing context.
+        # video is completedly saved only after closing context.
+        video_path = @browser&.video_path
+
         # [NOTE] @playwright_browser should keep alive for better performance.
         # Only `Browser` is disposed.
         @browser&.clear_browser_contexts
+
+        if video_path
+          callback_on_save_screenrecord(video_path)
+        end
+
         @browser = nil
       end
 
@@ -104,9 +125,6 @@ module Capybara
       def_delegator(:browser, :switch_to_window)
       def_delegator(:browser, :accept_modal)
       def_delegator(:browser, :dismiss_modal)
-
-      # capybara-playwright-driver specific methods
-      def_delegator(:browser, :with_playwright_page)
     end
   end
 end

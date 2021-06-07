@@ -30,3 +30,5 @@
 /node_modules
 
 /save_path_tmp
+/reports
+/allure-report
