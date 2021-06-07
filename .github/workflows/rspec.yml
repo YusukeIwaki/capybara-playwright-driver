@@ -5,8 +5,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, webkit, firefox]
+        browser: [chromium, webkit]
     name: (${{ matrix.browser }}) Playwright Driver
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7.3
+          bundler-cache: true
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14
+      - uses: microsoft/playwright-github-action@v1
+      - name: setup playwright via npm install
+        run: |
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
+          ./node_modules/.bin/playwright install
+      - run: bundle exec rspec spec/capybara/
+        env:
+          BROWSER: ${{ matrix.browser }}
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 25
+
+  playwright_driver_spec_firefox:
+    name: (firefox) Playwright Driver
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -29,16 +54,23 @@ jobs:
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
-      - run: bundle exec rspec spec/capybara/ --format AllureRspecFormatter --format documentation
+      - run: bundle exec rspec spec/capybara/ --format AllureRspecFormatter --format documentation --failure-exit-code 0
         env:
-          BROWSER: ${{ matrix.browser }}
+          BROWSER: firefox
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
-        timeout-minutes: 100
+        timeout-minutes: 45
+      - run: bundle exec rspec spec/capybara/ --format AllureRspecFormatter --format documentation --only-failures
+        env:
+          BROWSER: firefox
+          DEBUG: 1
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 15
       - run: allure generate reports/allure-results
       - uses: actions/upload-artifact@v2
         with:
           name: allure-report
           path: allure-report
+
 
   example_spec:
     strategy:
