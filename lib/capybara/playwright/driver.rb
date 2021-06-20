@@ -20,7 +20,7 @@ module Capybara
       def wait?; true; end
       def needs_server?; true; end
 
-      def browser
+      private def browser
         @browser ||= ::Capybara::Playwright::Browser.new(
           driver: self,
           playwright_browser: playwright_browser,
