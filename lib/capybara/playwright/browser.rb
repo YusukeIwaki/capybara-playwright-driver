@@ -328,7 +328,20 @@ module Capybara
         when ::Playwright::ElementHandle
           Node.new(@driver, @playwright_page, arg)
         when ::Playwright::JSHandle
-          arg.json_value
+          obj_type, is_array = arg.evaluate('obj => [typeof obj, Array.isArray(obj)]')
+          if obj_type == 'object'
+            if is_array
+              arg.properties.map do |_, value|
+                wrap_node(value)
+              end
+            else
+              arg.properties.map do |key, value|
+                [key, wrap_node(value)]
+              end.to_h
+            end
+          else
+            arg.json_value
+          end
         else
           arg
         end

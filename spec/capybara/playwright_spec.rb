@@ -13,8 +13,6 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
     pending 'Playwright does not allow to click outside the element'
   when /should not retry clicking when wait is disabled/
     pending 'wait = 0 is not supported'
-  when /should support multiple statements via IIFE/
-    pending 'evaluateHandle does not work with Array.'
   when /when details is toggled open and closed/
     pending "NoMethodError: undefined method `and' for #<Capybara::RSpecMatchers::Matchers::HaveSelector:0x00007f9bafd56900>"
   when /Element#drop/
