@@ -331,7 +331,11 @@ module Capybara
           obj_type, is_array = arg.evaluate('obj => [typeof obj, Array.isArray(obj)]')
           if obj_type == 'object'
             if is_array
-              arg.properties.map do |_, value|
+              # Firefox often include 'toJSON' into properties.
+              # https://github.com/microsoft/playwright/issues/7015
+              #
+              # Get rid of non-numeric entries.
+              arg.properties.select { |key, _| key.to_i.to_s == key.to_s }.map  do |_, value|
                 wrap_node(value)
               end
             else
