@@ -1,4 +1,5 @@
 require_relative './tmpdir_owner'
+require_relative './caller_detection'
 
 module Capybara
   module Playwright
@@ -9,6 +10,7 @@ module Capybara
     # Note that this class doesn't manage Playwright::Browser.
     # We should not use Playwright::Browser#close in this class.
     class Browser
+      include CallerDetection
       include TmpdirOwner
       extend Forwardable
 
@@ -75,9 +77,15 @@ module Capybara
         @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
       end
 
+      private def capybara_default_wait_time
+        Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
+      end
+
       def find_xpath(query, **options)
         assert_page_alive
-
+        if called_for_finding?
+          @playwright_page.capybara_current_frame.wait_for_selector("xpath=#{query}", timeout: capybara_default_wait_time)
+        end
         @playwright_page.capybara_current_frame.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @playwright_page, el)
         end
@@ -85,7 +93,9 @@ module Capybara
 
       def find_css(query, **options)
         assert_page_alive
-
+        if called_for_finding?
+          @playwright_page.capybara_current_frame.wait_for_selector(query)
+        end
         @playwright_page.capybara_current_frame.query_selector_all(query).map do |el|
           Node.new(@driver, @playwright_page, el)
         end

@@ -1,3 +1,5 @@
+require_relative './caller_detection'
+
 module Capybara
   module ElementClickOptionPatch
     def perform_click_action(keys, **options)
@@ -64,6 +66,8 @@ module Capybara
     #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb
     #   apparition: https://github.com/twalpole/apparition/blob/master/lib/capybara/apparition/node.rb
     class Node < ::Capybara::Driver::Node
+      include CallerDetection
+
       def initialize(driver, page, element)
         super(driver, element)
         @page = page
@@ -904,6 +908,7 @@ module Capybara
       def find_xpath(query, **options)
         assert_element_not_stale
 
+        @element.wait_for_selector("xpath=#{query}") if called_for_finding?
         @element.query_selector_all("xpath=#{query}").map do |el|
           Node.new(@driver, @page, el)
         end
@@ -912,6 +917,7 @@ module Capybara
       def find_css(query, **options)
         assert_element_not_stale
 
+        @element.wait_for_selector(query) if called_for_finding?
         @element.query_selector_all(query).map do |el|
           Node.new(@driver, @page, el)
         end
