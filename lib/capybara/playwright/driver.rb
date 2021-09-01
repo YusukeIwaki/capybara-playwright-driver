@@ -7,13 +7,7 @@ module Capybara
       include DriverExtension
 
       def initialize(app, **options)
-        @playwright_cli_executable_path = options[:playwright_cli_executable_path] || 'npx playwright'
-        @browser_type = options[:browser_type] || :chromium
-        unless %i(chromium firefox webkit).include?(@browser_type)
-          raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
-        end
-
-        @browser_options = BrowserOptions.new(options)
+        @browser_runner = BrowserRunner.new(options)
         @page_options = PageOptions.new(options)
       end
 
@@ -43,22 +37,13 @@ module Capybara
           exit @exit_status if @exit_status # Force exit with stored status
         end
 
-        browser_type = playwright_execution.playwright.send(@browser_type)
-        browser_options = @browser_options.value
-        browser_type.launch(**browser_options)
-      end
-
-      private def playwright_execution
-        @playwright_execution ||= ::Playwright.create(
-          playwright_cli_executable_path: @playwright_cli_executable_path,
-        )
+        @browser_runner.start
       end
 
       private def quit
         @playwright_browser&.close
         @playwright_browser = nil
-        @playwright_execution&.stop
-        @playwright_execution = nil
+        @browser_runner.stop
       end
 
       def reset!

@@ -23,6 +23,8 @@ end
 
 Capybara.register_driver(:playwright) do |app|
   Capybara::Playwright::Driver.new(app,
+    browser_server_endpoint_url: ENV['BROWSER_SERVER_ENDPOINT_URL'],
+    playwright_server_endpoint_url: ENV['PLAYWRIGHT_SERVER_ENDPOINT_URL'],
     playwright_cli_executable_path: ENV['PLAYWRIGHT_CLI_EXECUTABLE_PATH'],
     browser_type: (ENV['BROWSER'] || 'chromium').to_sym,
     headless: ENV['CI'] ? true : false,
