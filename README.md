@@ -2,11 +2,13 @@
 
 # 🎭 Playwright driver for Capybara
 
-#### [Docs](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration)
+Make it easy to introduce Playwright into your Rails application.
 
 ```ruby
 gem 'capybara-playwright-driver'
 ```
+
+**NOTE**: If you want to use Playwright-native features (such as auto-waiting, various type of locators, ...), [consider using playwright-ruby-client directly](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration_with_null_driver).
 
 ## Examples
 
@@ -37,6 +39,8 @@ all('.repo-list-item').each do |li|
   puts "#{li.with_playwright_element_handle { |handle| handle.query_selector('a').text_content }} by Playwright"
 end
 ```
+
+Refer the [documentation](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration) for more detailed configuration.
 
 ## License
 
