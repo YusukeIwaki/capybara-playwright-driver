@@ -97,6 +97,7 @@ module Capybara
       def_delegator(:browser, :save_screenshot)
       def_delegator(:browser, :response_headers)
       def_delegator(:browser, :status_code)
+      def_delegator(:browser, :active_element)
       def_delegator(:browser, :send_keys)
       def_delegator(:browser, :switch_to_frame)
       def_delegator(:browser, :current_window_handle)
