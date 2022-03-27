@@ -165,6 +165,15 @@ module Capybara
         wrap_node(result)
       end
 
+      def active_element
+        el = @playwright_page.capybara_current_frame.evaluate_handle('() => document.activeElement')
+        if el
+          Node.new(@driver, @playwright_page, el)
+        else
+          nil
+        end
+      end
+
       # Not used by Capybara::Session.
       # Intended to be directly called by user.
       def video_path
