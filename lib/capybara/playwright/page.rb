@@ -31,6 +31,8 @@ module Capybara
         })
         on('framenavigated', -> (frame) {
           @capybara_last_response = @capybara_all_responses[frame.url]
+        })
+        on('load', -> (page) {
           @capybara_all_responses.clear
         })
       end

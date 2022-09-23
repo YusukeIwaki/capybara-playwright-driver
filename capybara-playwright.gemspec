@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'capybara'
   spec.add_dependency 'playwright-ruby-client', '>= 1.16.0'
   spec.add_development_dependency 'allure-rspec'
-  spec.add_development_dependency 'bundler', '~> 2.3.10'
+  spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'launchy', '>= 2.0.4'
   spec.add_development_dependency 'pry-byebug'
   spec.add_development_dependency 'rake', '~> 13.0.3'

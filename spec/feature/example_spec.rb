@@ -27,6 +27,7 @@ RSpec.describe 'Example' do
   it 'take a screenshot' do
     Capybara.app_host = 'https://github.com'
     visit '/YusukeIwaki'
+    expect(status_code).to eq(200)
     page.save_screenshot('YusukeIwaki.png')
   end
 
@@ -53,6 +54,8 @@ RSpec.describe 'Example' do
   it 'search capybara' do
     Capybara.app_host = 'https://github.com'
     visit '/'
+    expect(status_code).to eq(200)
+
     fill_in('q', with: 'Capybara')
 
     find('a[data-item-type="global_search"]').click
