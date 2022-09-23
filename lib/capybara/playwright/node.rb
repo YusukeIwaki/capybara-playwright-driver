@@ -891,6 +891,17 @@ module Capybara
         @element.dispatch_event(event)
       end
 
+      def shadow_root
+        # Playwright does not distinguish shadow DOM.
+        # https://playwright.dev/docs/selectors#selecting-elements-in-shadow-dom
+        # Just do with Host element as shadow root Element.
+        #
+        #   Node.new(@driver, @page, @element.evaluate_handle('el => el.shadowRoot'))
+        #
+        # does not work well because of the Playwright Error 'Element is not attached to the DOM'
+        self
+      end
+
       def inspect
         %(#<#{self.class} tag="#{tag_name}" path="#{path}">)
       end
