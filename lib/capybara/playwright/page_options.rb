@@ -27,6 +27,7 @@ module Capybara
         record_video_dir: nil,
         record_video_size: nil,
         screen: nil,
+        serviceWorkers: nil,
         storageState: nil,
         timezoneId: nil,
         userAgent: nil,
