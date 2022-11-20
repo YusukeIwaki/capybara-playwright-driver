@@ -245,7 +245,15 @@ module Capybara
 
       class FileUpload < Settable
         def set(value, **options)
-          @element.set_input_files(value, timeout: @timeout)
+          file =
+            if value.is_a?(File)
+              value.path
+            elsif value.is_a?(Enumerable)
+              value.map(&:to_s)
+            else
+              value.to_s
+            end
+          @element.set_input_files(file, timeout: @timeout)
         end
       end
 
