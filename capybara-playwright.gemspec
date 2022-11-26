@@ -31,6 +31,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'launchy', '>= 2.0.4'
   spec.add_development_dependency 'pry-byebug'
+  spec.add_development_dependency 'rack-test_server'
   spec.add_development_dependency 'rake', '~> 13.0.3'
   spec.add_development_dependency 'rspec', '~> 3.11.0'
   spec.add_development_dependency 'rubocop-rspec'
