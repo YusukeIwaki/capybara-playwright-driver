@@ -30,6 +30,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
   when /Playwright #refresh it reposts/
     # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/spec/selenium_spec_safari.rb#L62
     pending "WebKit opens an alert that can't be closed" if ENV['BROWSER'] == 'webkit'
+  when /shadow_root should produce error messages when failing/
+    pending "Probably Capybara would assume only Selenium driver."
   end
 
   Capybara::SpecHelper.reset!

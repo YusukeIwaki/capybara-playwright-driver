@@ -907,7 +907,7 @@ module Capybara
         #   Node.new(@driver, @page, @element.evaluate_handle('el => el.shadowRoot'))
         #
         # does not work well because of the Playwright Error 'Element is not attached to the DOM'
-        self
+        ShadowRootNode.new(@driver, @page, @element)
       end
 
       def inspect
