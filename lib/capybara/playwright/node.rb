@@ -74,14 +74,18 @@ module Capybara
         @element
       end
 
-      private def assert_element_not_stale
+      private def assert_element_not_stale(&block)
         # Playwright checks the staled state only when
         # actionable methods. (click, select_option, hover, ...)
         # Capybara expects stale checking also when getting inner text, and so on.
         @element.enabled?
+
+        block.call
       rescue ::Playwright::Error => err
         case err.message
         when /Element is not attached to the DOM/
+          raise StaleReferenceError.new(err)
+        when /Execution context was destroyed, most likely because of a navigation/
           raise StaleReferenceError.new(err)
         when /Cannot find context with specified id/
           raise StaleReferenceError.new(err)
@@ -102,42 +106,42 @@ module Capybara
       class StaleReferenceError < StandardError ; end
 
       def all_text
-        assert_element_not_stale
-
-        text = @element.text_content
-        text.to_s.gsub(/[\u200b\u200e\u200f]/, '')
-            .gsub(/[\ \n\f\t\v\u2028\u2029]+/, ' ')
-            .gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
-            .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
-            .tr("\u00a0", ' ')
+        assert_element_not_stale {
+          text = @element.text_content
+          text.to_s.gsub(/[\u200b\u200e\u200f]/, '')
+              .gsub(/[\ \n\f\t\v\u2028\u2029]+/, ' ')
+              .gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
+              .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
+              .tr("\u00a0", ' ')
+        }
       end
 
       def visible_text
-        assert_element_not_stale
+        assert_element_not_stale {
+          return '' unless visible?
 
-        return '' unless visible?
-
-        text = @element.evaluate(<<~JAVASCRIPT)
-          function(el){
-            if (el.nodeName == 'TEXTAREA'){
-              return el.textContent;
-            } else if (el instanceof SVGElement) {
-              return el.textContent;
-            } else {
-              return el.innerText;
+          text = @element.evaluate(<<~JAVASCRIPT)
+            function(el){
+              if (el.nodeName == 'TEXTAREA'){
+                return el.textContent;
+              } else if (el instanceof SVGElement) {
+                return el.textContent;
+              } else {
+                return el.innerText;
+              }
             }
-          }
-        JAVASCRIPT
-        text.to_s.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
-            .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
-            .gsub(/\n+/, "\n")
-            .tr("\u00a0", ' ')
+          JAVASCRIPT
+          text.to_s.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
+              .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
+              .gsub(/\n+/, "\n")
+              .tr("\u00a0", ' ')
+        }
       end
 
       def [](name)
-        assert_element_not_stale
-
-        property(name) || attribute(name)
+        assert_element_not_stale {
+          property(name) || attribute(name)
+        }
       end
 
       private def property(name)
@@ -150,17 +154,17 @@ module Capybara
       end
 
       def value
-        assert_element_not_stale
-
-        # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L31
-        # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
-        if tag_name == 'select' && @element.evaluate('el => el.multiple')
-          @element.query_selector_all('option:checked').map do |option|
-            option.evaluate('el => el.value')
+        assert_element_not_stale {
+          # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L31
+          # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/node.rb#L728
+          if tag_name == 'select' && @element.evaluate('el => el.multiple')
+            @element.query_selector_all('option:checked').map do |option|
+              option.evaluate('el => el.value')
+            end
+          else
+            @element.evaluate('el => el.value')
           end
-        else
-          @element.evaluate('el => el.value')
-        end
+        }
       end
 
       def style(styles)
@@ -780,37 +784,37 @@ module Capybara
       end
 
       def visible?
-        assert_element_not_stale
-
-        # if an area element, check visibility of relevant image
-        @element.evaluate(<<~JAVASCRIPT)
-        function(el) {
-          if (el.tagName == 'AREA'){
-            const map_name = document.evaluate('./ancestor::map/@name', el, null, XPathResult.STRING_TYPE, null).stringValue;
-            el = document.querySelector(`img[usemap='#${map_name}']`);
-            if (!el){
-            return false;
-            }
-          }
-          var forced_visible = false;
-          while (el) {
-            const style = window.getComputedStyle(el);
-            if (style.visibility == 'visible')
-              forced_visible = true;
-            if ((style.display == 'none') ||
-                ((style.visibility == 'hidden') && !forced_visible) ||
-                (parseFloat(style.opacity) == 0)) {
+        assert_element_not_stale {
+          # if an area element, check visibility of relevant image
+          @element.evaluate(<<~JAVASCRIPT)
+          function(el) {
+            if (el.tagName == 'AREA'){
+              const map_name = document.evaluate('./ancestor::map/@name', el, null, XPathResult.STRING_TYPE, null).stringValue;
+              el = document.querySelector(`img[usemap='#${map_name}']`);
+              if (!el){
               return false;
+              }
             }
-            var parent = el.parentElement;
-            if (parent && (parent.tagName == 'DETAILS') && !parent.open && (el.tagName != 'SUMMARY')) {
-              return false;
+            var forced_visible = false;
+            while (el) {
+              const style = window.getComputedStyle(el);
+              if (style.visibility == 'visible')
+                forced_visible = true;
+              if ((style.display == 'none') ||
+                  ((style.visibility == 'hidden') && !forced_visible) ||
+                  (parseFloat(style.opacity) == 0)) {
+                return false;
+              }
+              var parent = el.parentElement;
+              if (parent && (parent.tagName == 'DETAILS') && !parent.open && (el.tagName != 'SUMMARY')) {
+                return false;
+              }
+              el = parent;
             }
-            el = parent;
+            return true;
           }
-          return true;
+          JAVASCRIPT
         }
-        JAVASCRIPT
       end
 
       def obscured?
@@ -818,15 +822,15 @@ module Capybara
       end
 
       def checked?
-        assert_element_not_stale
-
-        @element.evaluate('el => !!el.checked')
+        assert_element_not_stale {
+          @element.evaluate('el => !!el.checked')
+        }
       end
 
       def selected?
-        assert_element_not_stale
-
-        @element.evaluate('el => !!el.selected')
+        assert_element_not_stale {
+          @element.evaluate('el => !!el.selected')
+        }
       end
 
       def disabled?
@@ -850,49 +854,49 @@ module Capybara
       end
 
       def rect
-        assert_element_not_stale
-
-        @element.evaluate(<<~JAVASCRIPT)
-        function(el){
-          const rects = [...el.getClientRects()]
-          const rect = rects.find(r => (r.height && r.width)) || el.getBoundingClientRect();
-          return rect.toJSON();
+        assert_element_not_stale {
+          @element.evaluate(<<~JAVASCRIPT)
+          function(el){
+            const rects = [...el.getClientRects()]
+            const rect = rects.find(r => (r.height && r.width)) || el.getBoundingClientRect();
+            return rect.toJSON();
+          }
+          JAVASCRIPT
         }
-        JAVASCRIPT
       end
 
       def path
-        assert_element_not_stale
-
-        @element.evaluate(<<~JAVASCRIPT)
-        (el) => {
-          var xml = document;
-          var xpath = '';
-          var pos, tempitem2;
-          if (el.getRootNode && el.getRootNode() instanceof ShadowRoot) {
-            return "(: Shadow DOM element - no XPath :)";
-          };
-          while(el !== xml.documentElement) {
-            pos = 0;
-            tempitem2 = el;
-            while(tempitem2) {
-              if (tempitem2.nodeType === 1 && tempitem2.nodeName === el.nodeName) { // If it is ELEMENT_NODE of the same name
-                pos += 1;
+        assert_element_not_stale {
+          @element.evaluate(<<~JAVASCRIPT)
+          (el) => {
+            var xml = document;
+            var xpath = '';
+            var pos, tempitem2;
+            if (el.getRootNode && el.getRootNode() instanceof ShadowRoot) {
+              return "(: Shadow DOM element - no XPath :)";
+            };
+            while(el !== xml.documentElement) {
+              pos = 0;
+              tempitem2 = el;
+              while(tempitem2) {
+                if (tempitem2.nodeType === 1 && tempitem2.nodeName === el.nodeName) { // If it is ELEMENT_NODE of the same name
+                  pos += 1;
+                }
+                tempitem2 = tempitem2.previousSibling;
               }
-              tempitem2 = tempitem2.previousSibling;
+              if (el.namespaceURI != xml.documentElement.namespaceURI) {
+                xpath = "*[local-name()='"+el.nodeName+"' and namespace-uri()='"+(el.namespaceURI===null?'':el.namespaceURI)+"']["+pos+']'+'/'+xpath;
+              } else {
+                xpath = el.nodeName.toUpperCase()+"["+pos+"]/"+xpath;
+              }
+              el = el.parentNode;
             }
-            if (el.namespaceURI != xml.documentElement.namespaceURI) {
-              xpath = "*[local-name()='"+el.nodeName+"' and namespace-uri()='"+(el.namespaceURI===null?'':el.namespaceURI)+"']["+pos+']'+'/'+xpath;
-            } else {
-              xpath = el.nodeName.toUpperCase()+"["+pos+"]/"+xpath;
-            }
-            el = el.parentNode;
+            xpath = '/'+xml.documentElement.nodeName.toUpperCase()+'/'+xpath;
+            xpath = xpath.replace(/\\/$/, '');
+            return xpath;
           }
-          xpath = '/'+xml.documentElement.nodeName.toUpperCase()+'/'+xpath;
-          xpath = xpath.replace(/\\/$/, '');
-          return xpath;
+          JAVASCRIPT
         }
-        JAVASCRIPT
       end
 
       def trigger(event)
@@ -921,19 +925,19 @@ module Capybara
       end
 
       def find_xpath(query, **options)
-        assert_element_not_stale
-
-        @element.query_selector_all("xpath=#{query}").map do |el|
-          Node.new(@driver, @page, el)
-        end
+        assert_element_not_stale {
+          @element.query_selector_all("xpath=#{query}").map do |el|
+            Node.new(@driver, @page, el)
+          end
+        }
       end
 
       def find_css(query, **options)
-        assert_element_not_stale
-
-        @element.query_selector_all(query).map do |el|
-          Node.new(@driver, @page, el)
-        end
+        assert_element_not_stale {
+          @element.query_selector_all(query).map do |el|
+            Node.new(@driver, @page, el)
+          end
+        }
       end
     end
   end
