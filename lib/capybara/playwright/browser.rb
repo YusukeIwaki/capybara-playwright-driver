@@ -65,7 +65,7 @@ module Capybara
             path
           end
 
-          @playwright_page.capybara_current_frame.goto(url, timeout: Capybara.default_max_wait_time)
+          @playwright_page.capybara_current_frame.goto(url, timeout: Capybara.default_max_wait_time * 1000)
         }
       end
 
