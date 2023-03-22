@@ -65,7 +65,7 @@ module Capybara
             path
           end
 
-          @playwright_page.capybara_current_frame.goto(url, timeout: capybara_default_wait_time)
+          @playwright_page.capybara_current_frame.goto(url, timeout: Capybara.default_max_wait_time)
         }
       end
 
@@ -387,10 +387,6 @@ module Capybara
         assert_page_alive {
           block.call(@playwright_page)
         }
-      end
-
-      private def capybara_default_wait_time
-        Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
       end
     end
   end
