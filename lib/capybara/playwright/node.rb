@@ -239,7 +239,13 @@ module Capybara
 
       class TextInput < Settable
         def set(value, **options)
-          @element.fill(value.to_s, timeout: @timeout)
+          text = value.to_s
+          if text.end_with?("\n")
+            @element.fill(text[0...-1], timeout: @timeout)
+            @element.press('Enter', timeout: @timeout)
+          else
+            @element.fill(text, timeout: @timeout)
+          end
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
 
