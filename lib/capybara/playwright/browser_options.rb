@@ -21,7 +21,8 @@ module Capybara
         ignoreDefaultArgs: nil,
         proxy: nil,
         slowMo: nil,
-        timeout: nil,
+        # timeout: nil,
+        tracesDir: nil,
       }.keys
 
       def value
