@@ -34,4 +34,12 @@ RSpec.describe 'timeout', sinatra: true do
     end
     expect { visit '/sleep?s=3' }.to raise_error(Playwright::TimeoutError)
   end
+
+  it "respects the custom default time out", driver: :playwright_timeout_2 do
+    visit "/sleep?s=0"
+
+    expect {
+      page.driver.with_playwright_page(&:itself).get_by_label('does not exist').text_content
+    }.to raise_error(Playwright::TimeoutError, /Timeout 2000ms exceeded/)
+  end
 end

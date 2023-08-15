@@ -10,7 +10,10 @@ module Capybara
         @browser_runner = BrowserRunner.new(options)
         @page_options = PageOptions.new(options)
         if options[:timeout].is_a?(Numeric)
-          @default_navigation_timeout = options[:timeout] * 1000
+          timeout = options[:timeout] * 1000
+
+          @default_timeout = timeout
+          @default_navigation_timeout = timeout
         end
       end
 
@@ -23,6 +26,7 @@ module Capybara
           playwright_browser: playwright_browser,
           page_options: @page_options.value,
           record_video: callback_on_save_screenrecord?,
+          default_timeout: @default_timeout,
           default_navigation_timeout: @default_navigation_timeout,
         )
       end
