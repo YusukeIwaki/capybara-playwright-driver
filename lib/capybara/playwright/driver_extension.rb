@@ -40,6 +40,33 @@ module Capybara
 
         @browser&.with_playwright_page(&block)
       end
+
+      # Start Playwright tracing (doc: https://playwright.dev/docs/api/class-tracing#tracing-start)
+      def start_tracing(name: nil, screenshots: false, snapshots: false, sources: false, title: nil)
+        # Ensure playwright page is initialized.
+        browser
+
+        with_playwright_page do |playwright_page|
+          playwright_page.context.tracing.start(name: name, screenshots: screenshots, snapshots: snapshots, sources: sources, title: title)
+        end
+      end
+
+      # Stop Playwright tracing (doc: https://playwright.dev/docs/api/class-tracing#tracing-stop)
+      def stop_tracing(path: nil)
+        with_playwright_page do |playwright_page|
+          playwright_page.context.tracing.stop(path: path)
+        end
+      end
+
+      # Trace execution of the given block. The tracing is automatically stopped when the block is finished.
+      def trace(name: nil, screenshots: false, snapshots: false, sources: false, title: nil, path: nil, &block)
+        raise ArgumentError.new('block must be given') unless block
+
+        start_tracing(name: name, screenshots: screenshots, snapshots: snapshots, sources: sources, title: title)
+        block.call
+      ensure
+        stop_tracing(path: path)
+      end
     end
   end
 end
