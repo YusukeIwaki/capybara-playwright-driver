@@ -8,6 +8,13 @@ module TestSessions
 end
 
 Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |example|
+  # example:
+  #  CAPYBARA_SPEC_FILTER=shadow_root bundle exec rspec spec/capybara/playwright_spec.rb
+  if ENV['CAPYBARA_SPEC_FILTER']
+    # Skip all tests that are not matching with the filter
+    skip unless example.metadata[:full_description].include?(ENV['CAPYBARA_SPEC_FILTER'])
+  end
+
   case example.metadata[:full_description]
   when /should offset outside (the|from center of) element/
     pending 'Playwright does not allow to click outside the element'
