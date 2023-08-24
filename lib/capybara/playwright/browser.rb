@@ -14,19 +14,21 @@ module Capybara
 
       class NoSuchWindowError < StandardError ; end
 
-      def initialize(driver:, playwright_browser:, page_options:, record_video: false, default_navigation_timeout: nil)
+      def initialize(driver:, playwright_browser:, page_options:, record_video: false, default_timeout: nil, default_navigation_timeout: nil)
         @driver = driver
         @playwright_browser = playwright_browser
         @page_options = page_options
         if record_video
           @page_options[:record_video_dir] ||= tmpdir
         end
+        @default_timeout = default_timeout
         @default_navigation_timeout = default_navigation_timeout
         @playwright_page = create_page(create_browser_context)
       end
 
       private def create_browser_context
         @playwright_browser.new_context(**@page_options).tap do |browser_context|
+          browser_context.default_timeout = @default_timeout if @default_timeout
           browser_context.default_navigation_timeout = @default_navigation_timeout if @default_navigation_timeout
           browser_context.on('page', ->(page) {
             unless @playwright_page

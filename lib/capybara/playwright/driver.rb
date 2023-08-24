@@ -9,8 +9,14 @@ module Capybara
       def initialize(app, **options)
         @browser_runner = BrowserRunner.new(options)
         @page_options = PageOptions.new(options)
-        if options[:timeout].is_a?(Numeric)
+        if options[:timeout].is_a?(Numeric) # just for compatibility with capybara-selenium-driver
           @default_navigation_timeout = options[:timeout] * 1000
+        end
+        if options[:default_timeout].is_a?(Numeric)
+          @default_timeout = options[:default_timeout] * 1000
+        end
+        if options[:default_navigation_timeout].is_a?(Numeric)
+          @default_navigation_timeout = options[:default_navigation_timeout] * 1000
         end
       end
 
@@ -23,6 +29,7 @@ module Capybara
           playwright_browser: playwright_browser,
           page_options: @page_options.value,
           record_video: callback_on_save_screenrecord?,
+          default_timeout: @default_timeout,
           default_navigation_timeout: @default_navigation_timeout,
         )
       end
