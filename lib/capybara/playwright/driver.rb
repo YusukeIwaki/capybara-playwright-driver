@@ -9,11 +9,14 @@ module Capybara
       def initialize(app, **options)
         @browser_runner = BrowserRunner.new(options)
         @page_options = PageOptions.new(options)
-        if options[:timeout].is_a?(Numeric)
-          timeout = options[:timeout] * 1000
-
-          @default_timeout = timeout
-          @default_navigation_timeout = timeout
+        if options[:timeout].is_a?(Numeric) # just for compatibility with capybara-selenium-driver
+          @default_navigation_timeout = options[:timeout] * 1000
+        end
+        if options[:default_timeout].is_a?(Numeric)
+          @default_timeout = options[:default_timeout] * 1000
+        end
+        if options[:default_navigation_timeout].is_a?(Numeric)
+          @default_navigation_timeout = options[:default_navigation_timeout] * 1000
         end
       end
 
