@@ -66,6 +66,14 @@ Capybara.register_driver(:playwright_timeout_2) do |app|
   Capybara::Playwright::Driver.new(app, **driver_opts, timeout: 2)
 end
 
+Capybara.register_driver(:playwright_timeout_2_default_timeout_3) do |app|
+  Capybara::Playwright::Driver.new(app, **driver_opts, timeout: 2, default_timeout: 3)
+end
+
+Capybara.register_driver(:playwright_timeout_2_default_timeout_3_default_navigation_timeout_4) do |app|
+  Capybara::Playwright::Driver.new(app, **driver_opts, timeout: 2, default_timeout: 3, default_navigation_timeout: 4)
+end
+
 Capybara.default_driver = :playwright
 Capybara.save_path = 'tmp/capybara'
 Capybara.server = :webrick
