@@ -14,13 +14,14 @@ module Capybara
 
       class NoSuchWindowError < StandardError ; end
 
-      def initialize(driver:, playwright_browser:, page_options:, record_video: false, default_timeout: nil, default_navigation_timeout: nil)
+      def initialize(driver:, playwright_browser:, page_options:, record_video: false, callback_on_save_trace: nil, default_timeout: nil, default_navigation_timeout: nil)
         @driver = driver
         @playwright_browser = playwright_browser
         @page_options = page_options
         if record_video
           @page_options[:record_video_dir] ||= tmpdir
         end
+        @callback_on_save_trace = callback_on_save_trace
         @default_timeout = default_timeout
         @default_navigation_timeout = default_navigation_timeout
         @playwright_page = create_page(create_browser_context)
@@ -35,6 +36,9 @@ module Capybara
               @playwright_page = page
             end
           })
+          if @callback_on_save_trace
+            browser_context.tracing.start(screenshots: true, snapshots: true)
+          end
         end
       end
 
@@ -49,6 +53,14 @@ module Capybara
       end
 
       def clear_browser_contexts
+        if @callback_on_save_trace
+          @playwright_browser.contexts.each do |browser_context|
+            filename = SecureRandom.hex(8)
+            zip_path = File.join(tmpdir, "#{filename}.zip")
+            browser_context.tracing.stop(path: zip_path)
+            @callback_on_save_trace.call(zip_path)
+          end
+        end
         @playwright_browser.contexts.each(&:close)
       end
 

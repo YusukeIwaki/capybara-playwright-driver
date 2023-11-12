@@ -35,6 +35,14 @@ module Capybara
         @callback_on_save_screenrecord&.call(video_path)
       end
 
+      # Register trace save process.
+      # The callback is called just after trace is saved.
+      #
+      # The trace.zip path (String) is called back into the given block
+      def on_save_trace(&block)
+        @callback_on_save_trace = block
+      end
+
       def with_playwright_page(&block)
         raise ArgumentError.new('block must be given') unless block
 

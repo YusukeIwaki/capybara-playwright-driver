@@ -29,6 +29,7 @@ module Capybara
           playwright_browser: playwright_browser,
           page_options: @page_options.value,
           record_video: callback_on_save_screenrecord?,
+          callback_on_save_trace: @callback_on_save_trace,
           default_timeout: @default_timeout,
           default_navigation_timeout: @default_navigation_timeout,
         )
