@@ -39,6 +39,9 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
     pending "WebKit opens an alert that can't be closed" if ENV['BROWSER'] == 'webkit'
   when /shadow_root should produce error messages when failing/
     pending "Probably Capybara would assume only Selenium driver."
+  when /fill_in should handle carriage returns with line feeds in a textarea correctly/
+    # https://github.com/teamcapybara/capybara/commit/a9dd889b640759925bd04c4991de086160242fae#diff-b62b86ae4de5582bd37146266622e3debbdcab6bab6e95f522185c6a4269067dR82
+    pending "Not sure what firefox is doing here" if ENV['BROWSER'] == 'firefox'
   end
 
   Capybara::SpecHelper.reset!
