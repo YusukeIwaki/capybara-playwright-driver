@@ -21,6 +21,17 @@ RSpec.describe 'Example' do
           test_case: true,
         )
       end
+
+      Capybara.current_session.driver.on_save_trace do |trace_path|
+        next unless defined?(Allure)
+
+        Allure.add_attachment(
+          name: "trace - #{example.description}",
+          source: File.read(trace_path),
+          type: 'application/zip',
+          test_case: true,
+        )
+      end
     end
   end
 
