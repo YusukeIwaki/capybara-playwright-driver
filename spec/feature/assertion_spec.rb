@@ -39,6 +39,10 @@ RSpec.describe 'assertion', sinatra: true do
     sinatra.get '/finish.html' do
       'finish'
     end
+
+    sinatra.get '/猫' do
+      'cat'
+    end
   end
 
   it 'survives against navigation' do
@@ -55,5 +59,11 @@ RSpec.describe 'assertion', sinatra: true do
     sleep 0.5
     refresh
     expect(page).to have_content('finish')
+  end
+
+  it 'can access paths using 2-byte characters' do
+    visit '/猫'
+
+    expect(page).to have_content('cat')
   end
 end

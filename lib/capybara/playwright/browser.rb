@@ -1,3 +1,4 @@
+require 'addressable/uri'
 require_relative './tmpdir_owner'
 
 module Capybara
@@ -74,9 +75,9 @@ module Capybara
         assert_page_alive {
           url =
           if Capybara.app_host
-            URI(Capybara.app_host).merge(path)
+            Addressable::URI.parse(Capybara.app_host) + path
           elsif Capybara.default_host
-            URI(Capybara.default_host).merge(path)
+            Addressable::URI.parse(Capybara.default_host) + path
           else
             path
           end
