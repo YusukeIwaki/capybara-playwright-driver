@@ -28,7 +28,11 @@ jobs:
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
-      - run: bundle exec rspec spec/feature/
+      - run: bundle exec rspec spec/feature/example_spec.rb
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
+      - run: bundle exec rspec spec/feature/ --exclude-pattern "spec/feature/example_spec.rb"
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 3
@@ -60,7 +64,11 @@ jobs:
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
           ./node_modules/.bin/playwright install
-      - run: bundle exec rspec spec/feature/
+      - run: bundle exec rspec spec/feature/example_spec.rb
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
+      - run: bundle exec rspec spec/feature/ --exclude-pattern "spec/feature/example_spec.rb"
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 3
