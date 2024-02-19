@@ -1,7 +1,7 @@
 name: RSpec
 on: [pull_request]
 jobs:
-  example_spec:
+  example_spec_legacy:
     strategy:
       fail-fast: false
       matrix:
@@ -9,9 +9,7 @@ jobs:
           - 2.4.10
           - 2.5.9
           - 2.6.10
-          - '2.7'
-          - '3.0'
-          - '3.1'
+          - 2.7.8
     name: (${{ matrix.ruby_version }}) Example
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +33,38 @@ jobs:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 3
 
+  example_spec:
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby_version:
+          - "3.0"
+          - "3.1"
+          - "3.2"
+          - "3.3"
+    name: (${{ matrix.ruby_version }}) Example
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby_version }}
+          bundler-cache: true
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 20
+      - uses: microsoft/playwright-github-action@v1
+      - name: setup playwright via npm install
+        run: |
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
+          ./node_modules/.bin/playwright install
+      - run: bundle exec rspec spec/feature/
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
+
   playwright_driver_spec:
     needs: example_spec
     strategy:
@@ -45,14 +75,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.1
+          ruby-version: 3.3
           bundler-cache: true
       - uses: actions/setup-node@v1
         with:
-          node-version: 16
+          node-version: 20
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
@@ -71,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: setup Allure
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.14.0/allure_2.14.0-1_all.deb
@@ -79,11 +109,11 @@ jobs:
           rm allure_2.14.0-1_all.deb
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.1
+          ruby-version: 3.3
           bundler-cache: true
       - uses: actions/setup-node@v1
         with:
-          node-version: 16
+          node-version: 20
       - uses: microsoft/playwright-github-action@v1
       - name: setup playwright via npm install
         run: |
