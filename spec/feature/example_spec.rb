@@ -49,7 +49,7 @@ RSpec.describe 'Example' do
       visit '/YusukeIwaki/capybara-playwright-driver'
 
       page.driver.with_playwright_page do |page|
-        page.query_selector('get-repo').click
+        page.locator('button', hasText: 'Code').click
         download = page.expect_download do
           page.click('text=Download ZIP')
         end
