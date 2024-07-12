@@ -26,7 +26,7 @@ module Capybara
           end
 
           def playwright_execution
-            @playwright_execution ||= ::Playwright.connect_to_playwright_server(@ws_endpoint)
+            @playwright_execution ||= ::Playwright.connect_to_playwright_server("#{@ws_endpoint}?browser=#{@browser_type}")
           end
 
           def playwright_browser
