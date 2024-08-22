@@ -21,7 +21,7 @@ module Capybara
       if native.is_a?(::Playwright::ElementHandle)
         block.call(native)
       else
-        raise "#{native.inspect} is not a Playwirght::ElementHandle"
+        raise "#{native.inspect} is not a Playwright::ElementHandle"
       end
     end
   end
