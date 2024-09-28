@@ -140,7 +140,7 @@ jobs:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 15
       - run: allure generate reports/allure-results
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: allure-report
