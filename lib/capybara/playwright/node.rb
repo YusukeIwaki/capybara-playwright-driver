@@ -131,7 +131,7 @@ module Capybara
               }
             }
           JAVASCRIPT
-          text.to_s.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
+          text.to_s.scrub.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
               .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
               .gsub(/\n+/, "\n")
               .tr("\u00a0", ' ')
