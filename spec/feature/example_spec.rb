@@ -91,4 +91,22 @@ RSpec.describe 'Example' do
       puts "#{li.with_playwright_element_handle { |handle| handle.text_content }} by Playwright"
     end
   end
+
+  it 'can send keys with modifier' do
+    Capybara.app_host = 'https://github.com'
+    visit '/'
+
+    page.send_keys ['s']
+
+    expect(page).to have_field('query-builder-test')
+  end
+
+  it 'can send keys with modifier' do
+    Capybara.app_host = 'https://tailwindcss.com/'
+    visit '/'
+
+    page.send_keys [:control, 'k']
+
+    expect(page).to have_field('docsearch-input')
+  end
 end
