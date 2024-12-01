@@ -92,7 +92,7 @@ RSpec.describe 'Example' do
     end
   end
 
-  it 'can send keys with modifier' do
+  it 'can send keys without modifier' do
     Capybara.app_host = 'https://github.com'
     visit '/'
 
