@@ -46,7 +46,7 @@ module Capybara
       def with_playwright_page(&block)
         raise ArgumentError.new('block must be given') unless block
 
-        @browser&.with_playwright_page(&block)
+        browser.with_playwright_page(&block)
       end
 
       # Start Playwright tracing (doc: https://playwright.dev/docs/api/class-tracing#tracing-start)

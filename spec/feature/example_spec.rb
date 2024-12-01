@@ -109,4 +109,12 @@ RSpec.describe 'Example' do
 
     expect(page).to have_field('docsearch-input')
   end
+
+  it 'does not silently pass when browser has not been started' do
+    expect do
+      page.driver.with_playwright_page do |_page|
+        raise 'this block actually executed'
+      end
+    end.to raise_error(RuntimeError, 'this block actually executed')
+  end
 end
