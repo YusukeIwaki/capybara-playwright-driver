@@ -96,7 +96,7 @@ RSpec.describe 'Example' do
     Capybara.app_host = 'https://github.com'
     visit '/'
 
-    page.send_keys ['s']
+    find('body').send_keys ['s']
 
     expect(page).to have_field('query-builder-test')
   end
@@ -105,7 +105,7 @@ RSpec.describe 'Example' do
     Capybara.app_host = 'https://tailwindcss.com/'
     visit '/'
 
-    page.send_keys [:control, 'k']
+    find('body').send_keys [:control, 'k']
 
     expect(page).to have_field('docsearch-input')
   end
