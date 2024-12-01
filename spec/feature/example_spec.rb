@@ -91,4 +91,12 @@ RSpec.describe 'Example' do
       puts "#{li.with_playwright_element_handle { |handle| handle.text_content }} by Playwright"
     end
   end
+
+  it 'does not silently pass when browser has not been started' do
+    expect do
+      page.driver.with_playwright_page do |_page|
+        raise 'this block actually executed'
+      end
+    end.to raise_error(RuntimeError, 'this block actually executed')
+  end
 end
