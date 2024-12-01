@@ -548,7 +548,7 @@ module Capybara
                   _key = key.last
                   code =
                     if _key.is_a?(String) && _key.length == 1
-                      _key.upcase
+                      _key
                     elsif _key.is_a?(Symbol)
                       key_for(_key)
                     else
@@ -567,7 +567,7 @@ module Capybara
                 when String
                   key.each_char do |char|
                     executables << PressKey.new(
-                      key: char.upcase,
+                      key: char,
                       modifiers: modifiers,
                     )
                   end
