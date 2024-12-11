@@ -600,6 +600,10 @@ module Capybara
 
         class PressKey
           def initialize(key:, modifiers:)
+            # Shift always requires uppercase key
+            # See https://playwright.dev/docs/input#keys-and-shortcuts
+            key.upcase! if modifiers.include?(MODIFIERS[:shift])
+
             # puts "PressKey: key=#{key} modifiers: #{modifiers}"
             if modifiers.empty?
               @key = key
