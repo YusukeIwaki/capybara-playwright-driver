@@ -92,6 +92,24 @@ RSpec.describe 'Example' do
     end
   end
 
+  it 'can send keys without modifier' do
+    Capybara.app_host = 'https://github.com'
+    visit '/'
+
+    find('body').send_keys ['s']
+
+    expect(page).to have_field('query-builder-test')
+  end
+
+  it 'can send keys with modifier' do
+    Capybara.app_host = 'https://tailwindcss.com/'
+    visit '/'
+
+    find('body').send_keys [:control, 'k']
+
+    expect(page).to have_field('docsearch-input')
+  end
+
   it 'does not silently pass when browser has not been started' do
     expect do
       page.driver.with_playwright_page do |_page|
