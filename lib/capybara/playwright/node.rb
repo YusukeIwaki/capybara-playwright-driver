@@ -8,7 +8,10 @@ module Capybara
 
       # Playwright has own auto-waiting feature.
       # So disable Capybara's retry logic.
-      options[:wait] = 0
+      if driver.is_a?(Capybara::Playwright::Driver)
+        options[:wait] = 0
+      end
+
       super
     end
   end
