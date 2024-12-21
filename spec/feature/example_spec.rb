@@ -92,22 +92,33 @@ RSpec.describe 'Example' do
     end
   end
 
-  it 'can send keys without modifier' do
-    Capybara.app_host = 'https://github.com'
-    visit '/'
+  context 'send_keys' do
+    it 'can send keys without modifier' do
+      Capybara.app_host = 'https://github.com'
+      visit '/'
 
-    find('body').send_keys ['s']
+      find('body').send_keys ['s']
 
-    expect(page).to have_field('query-builder-test')
-  end
+      expect(page).to have_field('query-builder-test')
+    end
 
-  it 'can send keys with modifier' do
-    Capybara.app_host = 'https://tailwindcss.com/'
-    visit '/'
+    it 'can send keys with modifier' do
+      Capybara.app_host = 'https://tailwindcss.com/'
+      visit '/'
 
-    find('body').send_keys [:control, 'k']
+      find('body').send_keys [:control, 'k']
 
-    expect(page).to have_field('docsearch-input')
+      expect(page).to have_field('docsearch-input')
+    end
+
+    it 'can shift+modifier' do
+      Capybara.app_host = 'https://github.com'
+      visit '/'
+
+      expect_any_instance_of(Playwright::ElementHandle).to receive(:press).with('Shift+Home')
+
+      find('body').send_keys %i[shift home]
+    end
   end
 
   it 'does not silently pass when browser has not been started' do
