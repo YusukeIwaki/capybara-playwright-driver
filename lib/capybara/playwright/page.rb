@@ -99,7 +99,7 @@ module Capybara
             message_promise.fulfill(message)
             acceptor.handle(dialog)
           else
-            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" dowsn't match"))
+            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" doesn't match"))
             dialog.dismiss
           end
         }
@@ -125,7 +125,7 @@ module Capybara
           if matcher.matches?(message)
             message_promise.fulfill(message)
           else
-            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" dowsn't match"))
+            message_promise.reject(Capybara::ModalNotFound.new("Dialog message=\"#{message}\" doesn't match"))
           end
           dialog.dismiss
         }
