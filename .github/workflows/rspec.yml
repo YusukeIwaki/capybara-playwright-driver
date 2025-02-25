@@ -14,20 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby_version }}
           bundler-cache: true
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
-      - uses: microsoft/playwright-github-action@v1
+          node-version: lts/*
       - name: setup playwright via npm install
         run: |
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
-          ./node_modules/.bin/playwright install
+          ./node_modules/.bin/playwright install --with-deps
       - run: bundle exec rspec spec/feature/example_spec.rb
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
@@ -46,6 +45,7 @@ jobs:
           - "3.1"
           - "3.2"
           - "3.3"
+          - "3.4"
     name: (${{ matrix.ruby_version }}) Example
     runs-on: ubuntu-latest
     steps:
@@ -55,15 +55,14 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby_version }}
           bundler-cache: true
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - uses: microsoft/playwright-github-action@v1
+          node-version: lts/*
       - name: setup playwright via npm install
         run: |
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
-          ./node_modules/.bin/playwright install
+          ./node_modules/.bin/playwright install --with-deps
       - run: bundle exec rspec spec/feature/example_spec.rb
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
@@ -88,15 +87,14 @@ jobs:
         with:
           ruby-version: 3.3
           bundler-cache: true
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - uses: microsoft/playwright-github-action@v1
+          node-version: lts/*
       - name: setup playwright via npm install
         run: |
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
-          ./node_modules/.bin/playwright install
+          ./node_modules/.bin/playwright install --with-deps
       - run: bundle exec rspec spec/capybara/
         env:
           BROWSER: ${{ matrix.browser }}
@@ -119,15 +117,14 @@ jobs:
         with:
           ruby-version: 3.3
           bundler-cache: true
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - uses: microsoft/playwright-github-action@v1
+          node-version: lts/*
       - name: setup playwright via npm install
         run: |
           export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
           npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
-          ./node_modules/.bin/playwright install
+          ./node_modules/.bin/playwright install --with-deps
       - run: bundle exec rspec spec/capybara/ --format AllureRspecFormatter --format documentation --failure-exit-code 0
         env:
           BROWSER: firefox
