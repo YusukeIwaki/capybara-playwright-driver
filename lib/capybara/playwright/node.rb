@@ -67,8 +67,9 @@ module Capybara
     #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb
     #   apparition: https://github.com/twalpole/apparition/blob/master/lib/capybara/apparition/node.rb
     class Node < ::Capybara::Driver::Node
-      def initialize(driver, page, element)
+      def initialize(driver, internal_logger, page, element)
         super(driver, element)
+        @internal_logger = internal_logger
         @page = page
         @element = element
       end
@@ -212,15 +213,16 @@ module Capybara
             end
           end
 
-        settable_class.new(@element, capybara_default_wait_time).set(value, **options)
+        settable_class.new(@element, capybara_default_wait_time, @internal_logger).set(value, **options)
       rescue ::Playwright::TimeoutError => err
         raise NotActionableError.new(err)
       end
 
       class Settable
-        def initialize(element, timeout)
+        def initialize(element, timeout, internal_logger)
           @element = element
           @timeout = timeout
+          @internal_logger = internal_logger
         end
       end
 
@@ -252,7 +254,7 @@ module Capybara
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
 
-          puts "[INFO] Node#set: element is not editable. #{@element}"
+          @internal_logger.info("Node#set: element is not editable. #{@element}")
         end
       end
 
@@ -924,7 +926,7 @@ module Capybara
         #   Node.new(@driver, @page, @element.evaluate_handle('el => el.shadowRoot'))
         #
         # does not work well because of the Playwright Error 'Element is not attached to the DOM'
-        ShadowRootNode.new(@driver, @page, @element)
+        ShadowRootNode.new(@driver, @internal_logger, @page, @element)
       end
 
       def inspect
@@ -940,7 +942,7 @@ module Capybara
       def find_xpath(query, **options)
         assert_element_not_stale {
           @element.query_selector_all("xpath=#{query}").map do |el|
-            Node.new(@driver, @page, el)
+            Node.new(@driver, @internal_logger, @page, el)
           end
         }
       end
@@ -948,7 +950,7 @@ module Capybara
       def find_css(query, **options)
         assert_element_not_stale {
           @element.query_selector_all(query).map do |el|
-            Node.new(@driver, @page, el)
+            Node.new(@driver, @internal_logger, @page, el)
           end
         }
       end

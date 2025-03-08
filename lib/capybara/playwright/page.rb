@@ -12,6 +12,10 @@ module Capybara
         capybara_initialize
       end
 
+      private def _update_internal_logger(internal_logger)
+        @internal_logger = internal_logger
+      end
+
       private def capybara_initialize
         @capybara_all_responses = {}
         @capybara_last_response = nil
@@ -44,7 +48,7 @@ module Capybara
       end
 
       private def capybara_on_unexpected_modal(dialog)
-        puts "[WARNING] Unexpected modal - \"#{dialog.message}\""
+        @internal_logger.warn "Unexpected modal - \"#{dialog.message}\""
         if dialog.type == 'beforeunload'
           dialog.accept_async
         else
