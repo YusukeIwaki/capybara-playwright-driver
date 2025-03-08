@@ -18,6 +18,7 @@ module Capybara
         if options[:default_navigation_timeout].is_a?(Numeric)
           @default_navigation_timeout = options[:default_navigation_timeout] * 1000
         end
+        @internal_logger = options[:logger] || default_logger
       end
 
       def wait?; true; end
@@ -26,6 +27,7 @@ module Capybara
       private def browser
         @browser ||= ::Capybara::Playwright::Browser.new(
           driver: self,
+          internal_logger: @internal_logger,
           playwright_browser: playwright_browser,
           page_options: @page_options.value,
           record_video: callback_on_save_screenrecord?,
@@ -50,6 +52,27 @@ module Capybara
         end
 
         @browser_runner.start
+      end
+
+      private def default_logger
+        if defined?(Rails)
+          Rails.logger
+        else
+          PutsLogger.new
+        end
+      end
+
+      # Since existing user already monkey-patched Kernel#puts,
+      # (https://gist.github.com/searls/9caa12f66c45a72e379e7bfe4c48405b)
+      # Logger.new(STDOUT) should be avoided to use.
+      class PutsLogger
+        def info(message)
+          puts "[INFO] #{message}"
+        end
+
+        def warn(message)
+          puts "[WARNING] #{message}"
+        end
       end
 
       private def quit

@@ -59,7 +59,7 @@ driver_opts = {
 }
 
 Capybara.register_driver(:playwright) do |app|
-  Capybara::Playwright::Driver.new(app, **driver_opts)
+  Capybara::Playwright::Driver.new(app, **driver_opts, logger: Logger.new($stdout))
 end
 
 Capybara.register_driver(:playwright_timeout_2) do |app|
