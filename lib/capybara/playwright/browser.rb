@@ -15,8 +15,9 @@ module Capybara
 
       class NoSuchWindowError < StandardError ; end
 
-      def initialize(driver:, playwright_browser:, page_options:, record_video: false, callback_on_save_trace: nil, default_timeout: nil, default_navigation_timeout: nil)
+      def initialize(driver:, internal_logger:, playwright_browser:, page_options:, record_video: false, callback_on_save_trace: nil, default_timeout: nil, default_navigation_timeout: nil)
         @driver = driver
+        @internal_logger = internal_logger
         @playwright_browser = playwright_browser
         @page_options = page_options
         if record_video
@@ -36,6 +37,7 @@ module Capybara
             unless @playwright_page
               @playwright_page = page
             end
+            page.send(:_update_internal_logger, @internal_logger)
           })
           if @callback_on_save_trace
             browser_context.tracing.start(screenshots: true, snapshots: true)
@@ -95,7 +97,7 @@ module Capybara
       def find_xpath(query, **options)
         assert_page_alive {
           @playwright_page.capybara_current_frame.query_selector_all("xpath=#{query}").map do |el|
-            Node.new(@driver, @playwright_page, el)
+            Node.new(@driver, @internal_logger, @playwright_page, el)
           end
         }
       end
@@ -103,7 +105,7 @@ module Capybara
       def find_css(query, **options)
         assert_page_alive {
           @playwright_page.capybara_current_frame.query_selector_all(query).map do |el|
-            Node.new(@driver, @playwright_page, el)
+            Node.new(@driver, @internal_logger, @playwright_page, el)
           end
         }
       end
@@ -185,7 +187,7 @@ module Capybara
       def active_element
         el = @playwright_page.capybara_current_frame.evaluate_handle('() => document.activeElement')
         if el
-          Node.new(@driver, @playwright_page, el)
+          Node.new(@driver, @internal_logger, @playwright_page, el)
         else
           nil
         end
@@ -252,7 +254,7 @@ module Capybara
             /Cannot find context with specified id/,
             /Unable to adopt element handle from a different document/
             # ignore error for retry
-            puts "[WARNING] #{err.message}"
+            @internal_logger.warn(err.message)
           else
             raise
           end
@@ -324,7 +326,7 @@ module Capybara
       end
 
       def maximize_window(handle)
-        puts "[WARNING] maximize_window is not supported in Playwright driver"
+        @internal_logger.warn("maximize_window is not supported in Playwright driver")
         # incomplete in Playwright
         # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/page.rb#L346
         on_window(handle) do |page|
@@ -334,7 +336,7 @@ module Capybara
       end
 
       def fullscreen_window(handle)
-        puts "[WARNING] fullscreen_window is not supported in Playwright driver"
+        @internal_logger.warn("fullscreen_window is not supported in Playwright driver")
         # incomplete in Playwright
         # ref: https://github.com/twalpole/apparition/blob/11aca464b38b77585191b7e302be2e062bdd369d/lib/capybara/apparition/page.rb#L341
         on_window(handle) do |page|
@@ -375,7 +377,7 @@ module Capybara
             [key, wrap_node(value)]
           end.to_h
         when ::Playwright::ElementHandle
-          Node.new(@driver, @playwright_page, arg)
+          Node.new(@driver, @internal_logger, @playwright_page, arg)
         when ::Playwright::JSHandle
           obj_type, is_array = arg.evaluate('obj => [typeof obj, Array.isArray(obj)]')
           if obj_type == 'object'

@@ -3,7 +3,7 @@ require_relative './node'
 module Capybara
   module Playwright
     class ShadowRootNode < Node
-      def initialize(driver, page, element)
+      def initialize(driver, internal_logger, page, element)
         super
         @shadow_roow_element = element.evaluate_handle('el => el.shadowRoot')
       end
