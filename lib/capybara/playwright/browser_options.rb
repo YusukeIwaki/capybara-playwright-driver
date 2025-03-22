@@ -20,6 +20,7 @@ module Capybara
         headless: nil,
         ignoreDefaultArgs: nil,
         proxy: nil,
+        reducedMotion: nil,
         slowMo: nil,
         # timeout: nil,
         tracesDir: nil,
