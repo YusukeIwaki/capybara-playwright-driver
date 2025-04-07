@@ -26,6 +26,7 @@ module Capybara
         record_har_path: nil,
         record_video_dir: nil,
         record_video_size: nil,
+        reducedMotion: nil,
         screen: nil,
         serviceWorkers: nil,
         storageState: nil,
