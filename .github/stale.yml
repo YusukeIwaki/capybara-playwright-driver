@@ -4,6 +4,7 @@ daysUntilStale: 7
 daysUntilClose: 3
 # Issues with these labels will never be considered stale
 exemptLabels:
+  - bug
   - security
 # Label to use when marking an issue as stale
 staleLabel: inactive
