@@ -37,12 +37,18 @@ module Capybara
         end
 
         class PlaywrightConnectToBrowserServer
-          def initialize(endpoint_url)
+          def initialize(endpoint_url, options)
             @ws_endpoint = endpoint_url
+            @browser_type = options[:browser_type] || :chromium
+            unless %i(chromium firefox webkit).include?(@browser_type)
+              raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
+            end
+            @browser_options = BrowserOptions.new(options)
           end
 
           def playwright_execution
-            @playwright_execution ||= ::Playwright.connect_to_browser_server(@ws_endpoint)
+            # requires playwright-ruby-client >= 1.54.1
+            @playwright_execution ||= ::Playwright.connect_to_browser_server(@ws_endpoint, browser_type: @browser_type.to_s)
           end
 
           def playwright_browser
@@ -78,7 +84,7 @@ module Capybara
             if options[:playwright_server_endpoint_url]
               PlaywrightConnectToPlaywrightServer.new(options[:playwright_server_endpoint_url], options)
             elsif options[:browser_server_endpoint_url]
-              PlaywrightConnectToBrowserServer.new(options[:browser_server_endpoint_url])
+              PlaywrightConnectToBrowserServer.new(options[:browser_server_endpoint_url], options)
             else
               PlaywrightCreate.new(options)
             end
