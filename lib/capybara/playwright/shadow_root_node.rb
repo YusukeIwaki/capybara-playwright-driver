@@ -5,12 +5,12 @@ module Capybara
     class ShadowRootNode < Node
       def initialize(driver, internal_logger, page, element)
         super
-        @shadow_roow_element = element.evaluate_handle('el => el.shadowRoot')
+        @shadow_root_element = element.evaluate_handle('el => el.shadowRoot')
       end
 
       def all_text
         assert_element_not_stale {
-          text = @shadow_roow_element.text_content
+          text = @shadow_root_element.text_content
           text.to_s.gsub(/[\u200b\u200e\u200f]/, '')
               .gsub(/[\ \n\f\t\v\u2028\u2029]+/, ' ')
               .gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
@@ -25,7 +25,7 @@ module Capybara
           return '' unless visible?
 
           # https://github.com/teamcapybara/capybara/blob/1c164b608fa6452418ec13795b293655f8a0102a/lib/capybara/rack_test/node.rb#L18
-          displayed_text = @shadow_roow_element.text_content.to_s.
+          displayed_text = @shadow_root_element.text_content.to_s.
                               gsub(/[\u200b\u200e\u200f]/, '').
                               gsub(/[\ \n\f\t\v\u2028\u2029]+/, ' ')
           displayed_text.squeeze(' ')

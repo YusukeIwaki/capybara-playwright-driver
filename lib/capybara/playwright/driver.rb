@@ -90,8 +90,8 @@ module Capybara
           end
         end
 
-        # video path can be aquired only before closing context.
-        # video is completedly saved only after closing context.
+        # video path can be acquired only before closing context.
+        # video is completely saved only after closing context.
         video_path = @browser&.video_path
 
         # [NOTE] @playwright_browser should keep alive for better performance.
