@@ -43,6 +43,23 @@ end
 
 Refer the [documentation](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration) for more detailed configuration.
 
+## Development
+
+Prepare to run tests:
+
+```bash
+bundle install
+export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+npm install playwright@${PLAYWRIGHT_CLI_VERSION}
+./node_modules/.bin/playwright install --with-deps
+```
+
+Now, run tests: note that they are run in a virtual framebuffer (Xvfb).
+
+```bash
+PLAYWRIGHT_CLI_EXECUTABLE_PATH=./node_modules/.bin/playwright xvfb-run bundle exec rspec
+```
+
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
