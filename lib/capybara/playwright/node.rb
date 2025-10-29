@@ -97,6 +97,8 @@ module Capybara
           raise StaleReferenceError.new(err)
         when /error in channel "content::page": exception while running method "adoptNode"/ # for Firefox
           raise StaleReferenceError.new(err)
+        when /(: Shadow DOM element - no XPath :)/
+          raise StaleReferenceError.new(err)
         else
           raise
         end
@@ -905,6 +907,9 @@ module Capybara
                 xpath = el.nodeName.toUpperCase()+"["+pos+"]/"+xpath;
               }
               el = el.parentNode;
+              if (!el) {
+                throw "(: Shadow DOM element - no XPath :)";
+              }
             }
             xpath = '/'+xml.documentElement.nodeName.toUpperCase()+'/'+xpath;
             xpath = xpath.replace(/\\/$/, '');
