@@ -44,6 +44,10 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
     pending "Not sure what firefox is doing here" if ENV['BROWSER'] == 'firefox'
   when /#has_element\? should be true if the given element is on the page/
     pending 'https://github.com/teamcapybara/capybara/pull/2751'
+  when /assert_matches_style should raise error if the elements style doesn't contain the given properties/
+    pending 'https://github.com/teamcapybara/capybara/pull/2832' if RUBY_VERSION >= '3.4'
+  when /#has_css\? :style option should support Hash/
+    pending 'https://github.com/teamcapybara/capybara/pull/2832' if RUBY_VERSION >= '3.4'
   end
 
   Capybara::SpecHelper.reset!
