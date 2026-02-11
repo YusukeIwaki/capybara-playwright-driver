@@ -17,6 +17,21 @@ module Capybara
   end
   Node::Element.prepend(ElementClickOptionPatch)
 
+  module CheckWithLabelOptionPatch
+    private
+
+    def _check_with_label(selector, checked, locator, **options)
+      # Playwright has own auto-waiting feature.
+      # So disable Capybara's retry logic.
+      if driver.is_a?(Capybara::Playwright::Driver)
+        options[:wait] = 0
+      end
+
+      super
+    end
+  end
+  Node::Base.prepend(CheckWithLabelOptionPatch)
+
   module WithElementHandlePatch
     def with_playwright_element_handle(&block)
       raise ArgumentError.new('block must be given') unless block
@@ -221,6 +236,12 @@ module Capybara
       end
 
       class Settable
+        # Short timeout for check/uncheck operations.
+        # When used via _check_with_label with allow_label_click: true,
+        # a fast failure here allows the label-click fallback to kick in quickly
+        # instead of waiting the full default_max_wait_time.
+        SHORT_TIMEOUT_MS = 200
+
         def initialize(element, timeout, internal_logger)
           @element = element
           @timeout = timeout
@@ -230,16 +251,16 @@ module Capybara
 
       class RadioButton < Settable
         def set(_, **options)
-          @element.check(timeout: @timeout)
+          @element.check(timeout: SHORT_TIMEOUT_MS)
         end
       end
 
       class Checkbox < Settable
         def set(value, **options)
           if value
-            @element.check(timeout: @timeout)
+            @element.check(timeout: SHORT_TIMEOUT_MS)
           else
-            @element.uncheck(timeout: @timeout)
+            @element.uncheck(timeout: SHORT_TIMEOUT_MS)
           end
         end
       end
