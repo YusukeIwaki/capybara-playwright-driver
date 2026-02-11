@@ -17,7 +17,7 @@ module Capybara
       end
 
       private def capybara_initialize
-        @capybara_all_responses = {}
+        @capybara_response_mutex = Mutex.new
         @capybara_last_response = nil
         @capybara_frames = []
 
@@ -31,13 +31,9 @@ module Capybara
           Thread.new(dest) { |_dest| download.save_as(_dest) }
         })
         on('response', -> (response) {
-          @capybara_all_responses[response.url] = response
-        })
-        on('framenavigated', -> (frame) {
-          @capybara_last_response = @capybara_all_responses[frame.url]
-        })
-        on('load', -> (page) {
-          @capybara_all_responses.clear
+          if response.request.navigation_request?
+            capybara_set_last_response(response)
+          end
         })
       end
 
@@ -146,6 +142,12 @@ module Capybara
         end
       end
 
+      def capybara_set_last_response(response)
+        @capybara_response_mutex.synchronize do
+          @capybara_last_response = response
+        end
+      end
+
       class Headers < Hash
         def [](key)
           # Playwright accepts lower-cased keys.
@@ -155,7 +157,7 @@ module Capybara
       end
 
       def capybara_response_headers
-        headers = @capybara_last_response&.headers || {}
+        headers = @capybara_response_mutex.synchronize { @capybara_last_response&.headers || {} }
 
         Headers.new.tap do |h|
           headers.each do |key, value|
@@ -165,7 +167,7 @@ module Capybara
       end
 
       def capybara_status_code
-        @capybara_last_response&.status.to_i
+        @capybara_response_mutex.synchronize { @capybara_last_response&.status.to_i }
       end
 
       def capybara_reset_frames
