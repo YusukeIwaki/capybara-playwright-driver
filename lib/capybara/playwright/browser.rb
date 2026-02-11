@@ -84,7 +84,8 @@ module Capybara
             path
           end
 
-          @playwright_page.capybara_current_frame.goto(url)
+          response = @playwright_page.capybara_current_frame.goto(url)
+          @playwright_page.capybara_set_last_response(response)
         }
       end
 
@@ -144,13 +145,15 @@ module Capybara
 
       def go_back
         assert_page_alive {
-          @playwright_page.go_back
+          response = @playwright_page.go_back
+          @playwright_page.capybara_set_last_response(response)
         }
       end
 
       def go_forward
         assert_page_alive {
-          @playwright_page.go_forward
+          response = @playwright_page.go_forward
+          @playwright_page.capybara_set_last_response(response)
         }
       end
 
