@@ -59,7 +59,45 @@ module Capybara
   end
   ::Playwright::ElementHandle.prepend(CapybaraObscuredPatch)
 
+  module CheckWithLabelPatch
+    def _check_with_label(*args, **kwargs, &block)
+      allow_label_click = kwargs.fetch(:allow_label_click, session_options.automatic_label_click)
+      if allow_label_click && session.driver.is_a?(Capybara::Playwright::Driver)
+        Capybara::Playwright::CheckWithLabelContext.with_driver(session.driver) { super }
+      else
+        super
+      end
+    end
+  end
+  Node::Actions.prepend(CheckWithLabelPatch)
+
   module Playwright
+    module CheckWithLabelContext
+      THREAD_KEY = :capybara_playwright_check_with_label_drivers
+      module_function
+
+      def with_driver(driver)
+        drivers = Thread.current[THREAD_KEY] ||= {}
+        key = driver.object_id
+        drivers[key] = drivers.fetch(key, 0) + 1
+        yield
+      ensure
+        return unless drivers
+
+        depth = drivers.fetch(key, 0) - 1
+        if depth <= 0
+          drivers.delete(key)
+          Thread.current[THREAD_KEY] = nil if drivers.empty?
+        else
+          drivers[key] = depth
+        end
+      end
+
+      def active_for_driver?(driver)
+        Thread.current[THREAD_KEY]&.fetch(driver.object_id, 0).to_i > 0
+      end
+    end
+
     # Selector and checking methods are derived from twapole/apparition
     # Action methods (click, select_option, ...) uses playwright.
     #
@@ -67,6 +105,8 @@ module Capybara
     #   selenium:   https://github.com/teamcapybara/capybara/blob/master/lib/capybara/selenium/node.rb
     #   apparition: https://github.com/twalpole/apparition/blob/master/lib/capybara/apparition/node.rb
     class Node < ::Capybara::Driver::Node
+      MAX_ACTIONABILITY_TIMEOUT_MS = 200
+
       def initialize(driver, internal_logger, page, element)
         super(driver, element)
         @internal_logger = internal_logger
@@ -215,9 +255,17 @@ module Capybara
             end
           end
 
-        settable_class.new(@element, capybara_default_wait_time, @internal_logger).set(value, **options)
+        timeout = timeout_override(driver, settable_class) || capybara_default_wait_time
+        settable_class.new(@element, timeout, @internal_logger).set(value, **options)
       rescue ::Playwright::TimeoutError => err
         raise NotActionableError.new(err)
+      end
+
+      private def timeout_override(driver, settable_class)
+        return unless [RadioButton, Checkbox].include?(settable_class)
+        return unless CheckWithLabelContext.active_for_driver?(driver)
+
+        MAX_ACTIONABILITY_TIMEOUT_MS
       end
 
       class Settable
