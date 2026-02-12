@@ -48,7 +48,7 @@ module Capybara
         return yield
       end
 
-      return self if _playwright_try_get_by_label(locator, action: action, exact: options[:exact])
+      return self if _playwright_try_get_by_label(locator, action: action)
 
       yield
     end
@@ -58,25 +58,15 @@ module Capybara
       return false unless allow_label_click
       return false unless driver.is_a?(Capybara::Playwright::Driver)
       return false if Hash.try_convert(allow_label_click)
-      return false unless _playwright_supported_check_options?(options)
+      return false unless options.empty?
 
       true
     end
 
-    # Keep this path intentionally narrow. Unsupported filters should use the standard Capybara flow.
-    NATIVE_CHECK_SUPPORTED_OPTIONS = %i[exact].freeze
-
-    private def _playwright_supported_check_options?(options)
-      (options.keys - NATIVE_CHECK_SUPPORTED_OPTIONS).empty?
-    end
-
-    private def _playwright_try_get_by_label(locator, action:, exact: nil)
+    private def _playwright_try_get_by_label(locator, action:)
       matched = false
       driver.with_playwright_page do |playwright_page|
-        kwargs = {}
-        kwargs[:exact] = exact unless exact.nil?
-
-        control_locator = playwright_page.get_by_label(locator.to_s, **kwargs)
+        control_locator = playwright_page.get_by_label(locator.to_s)
         next if control_locator.count < 1
 
         control = control_locator.first.element_handle
@@ -112,7 +102,9 @@ module Capybara
       false
     end
   end
-  Node::Actions.prepend(NodeActionsAllowLabelClickPatch)
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.7')
+    Node::Actions.prepend(NodeActionsAllowLabelClickPatch)
+  end
 
   module CapybaraObscuredPatch
     # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L523

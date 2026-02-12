@@ -2,6 +2,10 @@ require 'spec_helper'
 require 'timeout'
 
 RSpec.describe 'allow_label_click with hidden inputs (ref: https://github.com/YusukeIwaki/capybara-playwright-driver/issues/120 )', sinatra: true do
+  before do
+    skip 'allow_label_click native patch is enabled only on Ruby >= 2.7' if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('2.7')
+  end
+
   # USWDS-like styling: hides the actual input off-screen while keeping the label visible.
   # This is a common pattern used by design systems like USWDS, Bootstrap, etc.
   HIDDEN_INPUT_STYLE = <<~CSS
