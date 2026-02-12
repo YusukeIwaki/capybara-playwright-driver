@@ -30,6 +30,75 @@ module Capybara
   end
   Node::Element.prepend(WithElementHandlePatch)
 
+  module NodeActionsAllowLabelClickPatch
+    def choose(locator = nil, **options)
+      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
+    end
+
+    def check(locator = nil, **options)
+      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
+    end
+
+    def uncheck(locator = nil, **options)
+      _playwright_check_via_get_by_label(locator, checked: false, **options) { super }
+    end
+
+    private def _playwright_check_via_get_by_label(locator, checked:, allow_label_click: session_options.automatic_label_click, **options)
+      unless _playwright_use_get_by_label?(locator, allow_label_click, options)
+        return yield
+      end
+
+      return self if _playwright_try_get_by_label(locator, checked: checked)
+
+      yield
+    end
+
+    private def _playwright_use_get_by_label?(locator, allow_label_click, options)
+      return false if locator.nil?
+      return false unless allow_label_click
+      return false unless driver.is_a?(Capybara::Playwright::Driver)
+      return false if Hash.try_convert(allow_label_click)
+      return false unless options.empty?
+
+      true
+    end
+
+    private def _playwright_try_get_by_label(locator, checked:)
+      handled = false
+      driver.with_playwright_page do |playwright_page|
+        begin
+          control_locator = playwright_page.get_by_label(locator.to_s)
+          control = control_locator
+
+          if control.evaluate('el => !!el.checked') != checked
+            label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+            next unless label.is_a?(::Playwright::ElementHandle)
+
+            label.click
+          end
+
+          next unless control.evaluate('el => !!el.checked') == checked
+
+          handled = true
+        rescue ::Playwright::Error
+          handled = false
+        end
+      end
+
+      handled
+    rescue StandardError
+      false
+    end
+  end
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.7')
+    # Prepend to Node::Base instead of Node::Actions because Ruby < 3.1
+    # does not propagate Module#prepend to classes that have already
+    # included the target module. Node::Base includes Node::Actions at
+    # load time, so prepending to Node::Actions afterwards has no effect
+    # on Node::Document / Node::Element in older Rubies.
+    Node::Base.prepend(NodeActionsAllowLabelClickPatch)
+  end
+
   module CapybaraObscuredPatch
     # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L523
     OBSCURED_OR_OFFSET_SCRIPT = <<~JAVASCRIPT

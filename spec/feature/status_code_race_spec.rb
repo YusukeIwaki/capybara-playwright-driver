@@ -30,10 +30,12 @@ RSpec.describe 'status_code race', sinatra: true do
   end
 
   around do |example|
-    ResponseCallbackDelayPatch.enabled = true
-    example.run
-  ensure
-    ResponseCallbackDelayPatch.enabled = false
+    begin
+      ResponseCallbackDelayPatch.enabled = true
+      example.run
+    ensure
+      ResponseCallbackDelayPatch.enabled = false
+    end
   end
 
   it 'returns 200 immediately after visit even if response callback is delayed' do
