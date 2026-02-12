@@ -91,7 +91,12 @@ module Capybara
     end
   end
   if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.7')
-    Node::Actions.prepend(NodeActionsAllowLabelClickPatch)
+    # Prepend to Node::Base instead of Node::Actions because Ruby < 3.1
+    # does not propagate Module#prepend to classes that have already
+    # included the target module. Node::Base includes Node::Actions at
+    # load time, so prepending to Node::Actions afterwards has no effect
+    # on Node::Document / Node::Element in older Rubies.
+    Node::Base.prepend(NodeActionsAllowLabelClickPatch)
   end
 
   module CapybaraObscuredPatch
