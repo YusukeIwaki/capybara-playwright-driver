@@ -32,23 +32,23 @@ module Capybara
 
   module NodeActionsAllowLabelClickPatch
     def choose(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, action: :check, **options) { super }
+      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
     end
 
     def check(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, action: :check, **options) { super }
+      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
     end
 
     def uncheck(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, action: :uncheck, **options) { super }
+      _playwright_check_via_get_by_label(locator, checked: false, **options) { super }
     end
 
-    private def _playwright_check_via_get_by_label(locator, action:, allow_label_click: session_options.automatic_label_click, **options)
+    private def _playwright_check_via_get_by_label(locator, checked:, allow_label_click: session_options.automatic_label_click, **options)
       unless _playwright_use_get_by_label?(locator, allow_label_click, options)
         return yield
       end
 
-      return self if _playwright_try_get_by_label(locator, action: action)
+      return self if _playwright_try_get_by_label(locator, checked: checked)
 
       yield
     end
@@ -63,41 +63,27 @@ module Capybara
       true
     end
 
-    private def _playwright_try_get_by_label(locator, action:)
-      matched = false
+    private def _playwright_try_get_by_label(locator, checked:)
+      handled = false
       driver.with_playwright_page do |playwright_page|
         control_locator = playwright_page.get_by_label(locator.to_s)
-        next if control_locator.count < 1
+        control = control_locator
 
-        control = control_locator.first.element_handle
-        next unless control
-
-        expected_checked =
-          case action
-          when :check
-            true
-          when :uncheck
-            false
-          else
-            nil
-          end
-        next if expected_checked.nil?
-
-        if control.evaluate('el => !!el.checked') != expected_checked
+        if control.evaluate('el => !!el.checked') != checked
           label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
           next unless label.is_a?(::Playwright::ElementHandle)
 
           label.click
         end
 
-        next unless control.evaluate('el => !!el.checked') == expected_checked
+        next unless control.evaluate('el => !!el.checked') == checked
 
-        matched = true
+        handled = true
       rescue ::Playwright::Error
-        matched = false
+        handled = false
       end
 
-      matched
+      handled
     rescue StandardError
       false
     end
