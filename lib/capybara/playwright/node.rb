@@ -66,21 +66,23 @@ module Capybara
     private def _playwright_try_get_by_label(locator, checked:)
       handled = false
       driver.with_playwright_page do |playwright_page|
-        control_locator = playwright_page.get_by_label(locator.to_s)
-        control = control_locator
+        begin
+          control_locator = playwright_page.get_by_label(locator.to_s)
+          control = control_locator
 
-        if control.evaluate('el => !!el.checked') != checked
-          label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
-          next unless label.is_a?(::Playwright::ElementHandle)
+          if control.evaluate('el => !!el.checked') != checked
+            label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+            next unless label.is_a?(::Playwright::ElementHandle)
 
-          label.click
+            label.click
+          end
+
+          next unless control.evaluate('el => !!el.checked') == checked
+
+          handled = true
+        rescue ::Playwright::Error
+          handled = false
         end
-
-        next unless control.evaluate('el => !!el.checked') == checked
-
-        handled = true
-      rescue ::Playwright::Error
-        handled = false
       end
 
       handled
