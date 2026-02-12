@@ -30,6 +30,241 @@ module Capybara
   end
   Node::Element.prepend(WithElementHandlePatch)
 
+  module NodeActionsAllowLabelClickPatch
+    def choose(locator = nil, **options)
+      _playwright_check_with_native_label_fallback(:radio_button, true, locator, **options) { super }
+    end
+
+    def check(locator = nil, **options)
+      _playwright_check_with_native_label_fallback(:checkbox, true, locator, **options) { super }
+    end
+
+    def uncheck(locator = nil, **options)
+      _playwright_check_with_native_label_fallback(:checkbox, false, locator, **options) { super }
+    end
+
+    private def _playwright_check_with_native_label_fallback(selector, checked, locator,
+                                                              allow_label_click: session_options.automatic_label_click, **options)
+      unless _playwright_native_label_click?(allow_label_click)
+        return yield
+      end
+
+      options[:allow_self] = true if locator.nil? && !options.key?(:allow_self)
+
+      native_result = _playwright_check_with_label_native(selector, checked, locator, **options)
+      return native_result if native_result
+
+      yield
+    end
+
+    private def _playwright_native_label_click?(allow_label_click)
+      return false unless allow_label_click
+      return false unless driver.is_a?(Capybara::Playwright::Driver)
+      return false if Hash.try_convert(allow_label_click)
+
+      true
+    end
+
+    NATIVE_LABEL_SUPPORTED_OPTIONS = %i[
+      allow_self
+      checked
+      class
+      disabled
+      exact
+      exact_text
+      id
+      match
+      name
+      normalize_ws
+      obscure
+      obscured
+      option
+      unchecked
+      visible
+      wait
+      with
+    ].freeze
+
+    private def _playwright_check_with_label_native(selector, checked, locator, **options)
+      return nil unless _playwright_native_options_supported?(options)
+
+      checked_element = nil
+      driver.with_playwright_page do |playwright_page|
+        element = _playwright_find_labeled_checkable(playwright_page, selector, locator, **options)
+        next unless element
+
+        begin
+          if element.evaluate('el => !!el.checked') != checked
+            label = _playwright_associated_label(element)
+            next unless label
+
+            label.click
+          end
+
+          next unless element.evaluate('el => !!el.checked') == checked
+
+          checked_element = _playwright_wrap_element(playwright_page, element)
+        rescue ::Playwright::Error
+          checked_element = nil
+        end
+      end
+
+      checked_element
+    rescue StandardError
+      nil
+    end
+
+    private def _playwright_native_options_supported?(options)
+      (options.keys - NATIVE_LABEL_SUPPORTED_OPTIONS).empty?
+    end
+
+    private def _playwright_find_labeled_checkable(playwright_page, selector, locator, **options)
+      input_type = _playwright_input_type(selector)
+      return nil unless input_type
+
+      candidates = _playwright_checkable_candidates(playwright_page, input_type, locator, options[:allow_self])
+      candidates.find do |candidate|
+        attrs = _playwright_checkable_attrs(candidate)
+        _playwright_locator_match?(attrs, locator) && _playwright_checkable_options_match?(attrs, **options)
+      end
+    end
+
+    private def _playwright_input_type(selector)
+      case selector
+      when :radio_button
+        'radio'
+      when :checkbox
+        'checkbox'
+      else
+        nil
+      end
+    end
+
+    private def _playwright_checkable_candidates(playwright_page, input_type, locator, allow_self)
+      selector = %(input[type="#{input_type}"])
+      scope_element = _playwright_native_scope_element
+      candidates = []
+
+      if locator.nil? && allow_self && scope_element && _playwright_same_input_type?(scope_element, input_type)
+        candidates << scope_element
+      end
+
+      if scope_element
+        candidates.concat(scope_element.query_selector_all(selector))
+      else
+        candidates.concat(playwright_page.capybara_current_frame.query_selector_all(selector))
+      end
+      candidates
+    end
+
+    private def _playwright_native_scope_element
+      return nil unless is_a?(Capybara::Node::Element)
+      return nil unless base.is_a?(Capybara::Playwright::Node)
+
+      base.send(:element)
+    end
+
+    private def _playwright_same_input_type?(element, input_type)
+      element.evaluate('(el, type) => el.tagName.toLowerCase() === "input" && (el.type || "").toLowerCase() === type', arg: input_type)
+    end
+
+    private def _playwright_checkable_attrs(element)
+      test_id = session_options.test_id
+      element.evaluate(<<~JAVASCRIPT, arg: test_id)
+      (el, testIdAttr) => {
+        const normalize = (value) => (value || '').replace(/[\\s\\u00a0]+/g, ' ').trim();
+        return {
+          id: el.id || '',
+          name: el.getAttribute('name') || '',
+          placeholder: el.getAttribute('placeholder') || '',
+          ariaLabel: el.getAttribute('aria-label') || '',
+          testId: testIdAttr ? (el.getAttribute(testIdAttr) || '') : '',
+          value: el.value == null ? '' : String(el.value),
+          className: el.getAttribute('class') || '',
+          disabled: !!el.disabled,
+          checked: !!el.checked,
+          labels: el.labels ? Array.from(el.labels).map((label) => normalize(label.textContent)) : []
+        };
+      }
+      JAVASCRIPT
+    end
+
+    private def _playwright_locator_match?(attrs, locator)
+      return true if locator.nil?
+
+      value = locator.to_s
+      [attrs['id'], attrs['name'], attrs['placeholder'], attrs['ariaLabel'], attrs['testId']].include?(value) ||
+        Array(attrs['labels']).include?(value)
+    end
+
+    private def _playwright_checkable_options_match?(attrs, id: nil, name: nil, class: nil, option: nil, with: nil,
+                                                      checked: nil, unchecked: nil, disabled: nil, **)
+      return false if id && !_playwright_value_match?(attrs['id'], id)
+      return false if name && !_playwright_value_match?(attrs['name'], name)
+      return false if binding.local_variable_get(:class) && !_playwright_class_match?(attrs['className'], binding.local_variable_get(:class))
+
+      option_value = option || with
+      return false if option_value && !_playwright_value_match?(attrs['value'], option_value)
+
+      checked_state = !!attrs['checked']
+      disabled_state = !!attrs['disabled']
+
+      return false if !checked.nil? && checked_state != !!checked
+      return false if !unchecked.nil? && checked_state != !unchecked
+      return false if !disabled.nil? && disabled_state != !!disabled
+
+      true
+    end
+
+    private def _playwright_class_match?(actual, expected)
+      case expected
+      when Regexp
+        expected.match?(actual.to_s)
+      else
+        classes = actual.to_s.split
+        Array(expected).all? { |required| classes.include?(required.to_s) }
+      end
+    end
+
+    private def _playwright_value_match?(actual, expected)
+      case expected
+      when Regexp
+        expected.match?(actual.to_s)
+      else
+        actual.to_s == expected.to_s
+      end
+    end
+
+    private def _playwright_associated_label(element)
+      label = element.evaluate_handle(<<~JAVASCRIPT)
+      (el) => {
+        if (el.labels && el.labels.length > 0) {
+          return el.labels[0];
+        }
+        const wrappingLabel = el.closest('label');
+        return wrappingLabel || null;
+      }
+      JAVASCRIPT
+
+      label if label.is_a?(::Playwright::ElementHandle)
+    end
+
+    private def _playwright_wrap_element(playwright_page, element)
+      Capybara::Node::Element.new(
+        session,
+        Capybara::Playwright::Node.new(
+          driver,
+          driver.instance_variable_get(:@internal_logger),
+          playwright_page,
+          element,
+        ),
+        self,
+        nil,
+      )
+    end
+  end
+  Node::Actions.prepend(NodeActionsAllowLabelClickPatch)
+
   module CapybaraObscuredPatch
     # ref: https://github.com/teamcapybara/capybara/blob/f7ab0b5cd5da86185816c2d5c30d58145fe654ed/lib/capybara/selenium/node.rb#L523
     OBSCURED_OR_OFFSET_SCRIPT = <<~JAVASCRIPT
