@@ -782,8 +782,47 @@ module Capybara
         end
       end
 
+      ATTACH_FILE = <<~JAVASCRIPT
+        () => {
+          const input = document.createElement('INPUT');
+          input.type = 'file';
+          input.multiple = true;
+          input.style.display = 'none';
+          document.body.appendChild(input);
+          return input;
+        }
+      JAVASCRIPT
+
+      DROP_FILE = <<~JAVASCRIPT
+        (el, input) => {
+          const dt = new DataTransfer();
+          for (const file of input.files) { dt.items.add(file); }
+          input.remove();
+          el.dispatchEvent(new DragEvent('drop', {
+            cancelable: true, bubbles: true, dataTransfer: dt
+          }));
+        }
+      JAVASCRIPT
+
+      DROP_STRING = <<~JAVASCRIPT
+        (el, items) => {
+          const dt = new DataTransfer();
+          for (const item of items) { dt.items.add(item.data, item.type); }
+          el.dispatchEvent(new DragEvent('drop', {
+            cancelable: true, bubbles: true, dataTransfer: dt
+          }));
+        }
+      JAVASCRIPT
+
       def drop(*args)
-        raise NotImplementedError
+        if args.first.is_a?(String) || args.first.is_a?(Pathname)
+          input = @page.evaluate_handle(ATTACH_FILE)
+          input.as_element.set_input_files(args.map(&:to_s))
+          @element.evaluate(DROP_FILE, arg: input)
+        else
+          items = args.flat_map { |arg| arg.map { |(type, data)| { type: type, data: data } } }
+          @element.evaluate(DROP_STRING, arg: items)
+        end
       end
 
       def scroll_by(x, y)
