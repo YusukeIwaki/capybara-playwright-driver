@@ -32,29 +32,28 @@ module Capybara
 
   module NodeActionsAllowLabelClickPatch
     def choose(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
+      _playwright_check_via_label_click(:radio_button, locator, checked: true, **options) { super }
     end
 
     def check(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, checked: true, **options) { super }
+      _playwright_check_via_label_click(:checkbox, locator, checked: true, **options) { super }
     end
 
     def uncheck(locator = nil, **options)
-      _playwright_check_via_get_by_label(locator, checked: false, **options) { super }
+      _playwright_check_via_label_click(:checkbox, locator, checked: false, **options) { super }
     end
 
-    private def _playwright_check_via_get_by_label(locator, checked:, allow_label_click: session_options.automatic_label_click, **options)
-      unless _playwright_use_get_by_label?(locator, allow_label_click, options)
+    private def _playwright_check_via_label_click(selector, locator, checked:, allow_label_click: session_options.automatic_label_click, **options)
+      unless _playwright_use_label_click?(allow_label_click, options)
         return yield
       end
 
-      return self if _playwright_try_get_by_label(locator, checked: checked)
+      return self if _playwright_try_clicking_label(selector, locator, checked: checked)
 
       yield
     end
 
-    private def _playwright_use_get_by_label?(locator, allow_label_click, options)
-      return false if locator.nil?
+    private def _playwright_use_label_click?(allow_label_click, options)
       return false unless allow_label_click
       return false unless driver.is_a?(Capybara::Playwright::Driver)
       return false if Hash.try_convert(allow_label_click)
@@ -63,29 +62,20 @@ module Capybara
       true
     end
 
-    private def _playwright_try_get_by_label(locator, checked:)
-      handled = false
-      driver.with_playwright_page do |playwright_page|
-        begin
-          control_locator = playwright_page.get_by_label(locator.to_s)
-          control = control_locator
+    private def _playwright_try_clicking_label(selector, locator, checked:)
+      control = find(selector, locator, wait: 0, visible: :all)
+      return true if control.checked? == checked
 
-          if control.evaluate('el => !!el.checked') != checked
-            label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
-            next unless label.is_a?(::Playwright::ElementHandle)
+      control.with_playwright_element_handle do |element_handle|
+        label = element_handle.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+        return false unless label.is_a?(::Playwright::ElementHandle)
 
-            label.click
-          end
-
-          next unless control.evaluate('el => !!el.checked') == checked
-
-          handled = true
-        rescue ::Playwright::Error
-          handled = false
-        end
+        label.click
       end
 
-      handled
+      control.checked? == checked
+    rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, ::Playwright::Error
+      false
     rescue StandardError
       false
     end

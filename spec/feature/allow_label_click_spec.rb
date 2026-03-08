@@ -94,6 +94,19 @@ RSpec.describe 'allow_label_click with hidden inputs (ref: https://github.com/Yu
 
       expect(page).to have_checked_field('I agree', visible: :all)
     end
+
+    it 'does not wait the full default_max_wait_time when passed an id with allow_label_click: true' do
+      visit '/'
+
+      # Uncheck first so we can test check
+      uncheck 'check1', allow_label_click: true
+
+      Timeout.timeout(time_limit) {
+        check 'check1', allow_label_click: true
+      }
+
+      expect(page).to have_checked_field('check1', visible: :all)
+    end
   end
 
   describe 'uncheck (checkbox)' do
