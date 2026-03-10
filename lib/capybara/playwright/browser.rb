@@ -48,7 +48,7 @@ module Capybara
       private def create_page(browser_context)
         browser_context.new_page.tap do |page|
           page.on('close', -> {
-            if @playwright_page
+            if @playwright_page&.guid == page.guid
               @playwright_page = nil
             end
           })
