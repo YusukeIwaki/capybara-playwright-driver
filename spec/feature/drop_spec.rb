@@ -1,8 +1,17 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tempfile'
 
 RSpec.describe 'Node#drop', sinatra: true do
+  def with_tempfile(content = 'hello')
+    Tempfile.create('drop_test') do |f|
+      f.write(content)
+      f.flush
+      yield f
+    end
+  end
+
   before do
     sinatra.get '/' do
       <<~HTML
@@ -45,41 +54,41 @@ RSpec.describe 'Node#drop', sinatra: true do
   end
 
   it 'drops a single file' do
-    visit '/'
-    target = find('#drop-zone')
-    target.drop(File.expand_path('../../Gemfile', __dir__))
-    expect(page).to have_css('.dropped-file', text: 'Dropped file: Gemfile')
+    with_tempfile do |f|
+      visit '/'
+      find('#drop-zone').drop(f.path)
+      expect(page).to have_css('.dropped-file', text: "Dropped file: #{File.basename(f.path)}")
+    end
   end
 
   it 'drops multiple files' do
-    visit '/'
-    target = find('#drop-zone')
-    target.drop(
-      File.expand_path('../../Gemfile', __dir__),
-      File.expand_path('../../Rakefile', __dir__)
-    )
-    expect(page).to have_css('.dropped-file', text: 'Dropped file: Gemfile')
-    expect(page).to have_css('.dropped-file', text: 'Dropped file: Rakefile')
+    with_tempfile('aaa') do |a|
+      with_tempfile('bbb') do |b|
+        visit '/'
+        find('#drop-zone').drop(a.path, b.path)
+        expect(page).to have_css('.dropped-file', text: "Dropped file: #{File.basename(a.path)}")
+        expect(page).to have_css('.dropped-file', text: "Dropped file: #{File.basename(b.path)}")
+      end
+    end
   end
 
   it 'drops a Pathname' do
-    visit '/'
-    target = find('#drop-zone')
-    target.drop(Pathname.new(File.expand_path('../../Gemfile', __dir__)))
-    expect(page).to have_css('.dropped-file', text: 'Dropped file: Gemfile')
+    with_tempfile do |f|
+      visit '/'
+      find('#drop-zone').drop(Pathname.new(f.path))
+      expect(page).to have_css('.dropped-file', text: "Dropped file: #{File.basename(f.path)}")
+    end
   end
 
   it 'drops a string with mime type' do
     visit '/'
-    target = find('#drop-zone')
-    target.drop('text/plain' => 'Hello from drop')
+    find('#drop-zone').drop('text/plain' => 'Hello from drop')
     expect(page).to have_css('.dropped-string', text: 'Dropped string: text/plain Hello from drop')
   end
 
   it 'drops multiple strings' do
     visit '/'
-    target = find('#drop-zone')
-    target.drop('text/plain' => 'Some text', 'text/uri-list' => 'http://example.com')
+    find('#drop-zone').drop('text/plain' => 'Some text', 'text/uri-list' => 'http://example.com')
     expect(page).to have_css('.dropped-string', text: 'Dropped string: text/plain Some text')
     expect(page).to have_css('.dropped-string', text: 'Dropped string: text/uri-list http://example.com')
   end
