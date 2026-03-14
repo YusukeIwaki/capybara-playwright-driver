@@ -63,21 +63,95 @@ module Capybara
     end
 
     private def _playwright_try_clicking_label(selector, locator, checked:)
-      control = find(selector, locator, wait: 0, visible: :all)
-      return true if control.checked? == checked
+      control = _playwright_find_checkable_by_non_label_locator(selector, locator)
+      return _playwright_try_clicking_associated_label(control, checked: checked) if control
 
-      control.with_playwright_element_handle do |element_handle|
-        label = element_handle.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
-        return false unless label.is_a?(::Playwright::ElementHandle)
+      return false if locator.nil?
 
-        label.click
-      end
-
-      control.checked? == checked
+      _playwright_try_get_by_label(locator, checked: checked)
     rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, ::Playwright::Error
       false
     rescue StandardError
       false
+    end
+
+    private def _playwright_try_get_by_label(locator, checked:)
+      handled = false
+      driver.with_playwright_page do |playwright_page|
+        begin
+          control = playwright_page.get_by_label(locator.to_s)
+          handled = _playwright_try_clicking_associated_label(control, checked: checked)
+        rescue ::Playwright::Error
+          handled = false
+        end
+      end
+
+      handled
+    rescue StandardError
+      false
+    end
+
+    private def _playwright_try_clicking_associated_label(control, checked:)
+      return true if control.evaluate('el => !!el.checked') == checked
+
+      label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+      return false unless label.is_a?(::Playwright::ElementHandle)
+
+      label.click
+
+      control.evaluate('el => !!el.checked') == checked
+    end
+
+    private def _playwright_find_checkable_by_non_label_locator(selector, locator)
+      return nil if locator.nil?
+
+      control = nil
+      locator_string = locator.to_s
+      test_id_attr = session_options.test_id&.to_s
+
+      driver.with_playwright_page do |playwright_page|
+        _playwright_non_label_candidates(playwright_page, selector).each do |candidate|
+          attrs = candidate.evaluate(<<~JAVASCRIPT, arg: test_id_attr)
+          (el, testIdAttr) => ({
+            id: el.id || '',
+            name: el.getAttribute('name') || '',
+            testId: testIdAttr ? (el.getAttribute(testIdAttr) || '') : '',
+          })
+          JAVASCRIPT
+          next unless [attrs['id'], attrs['name'], attrs['testId']].include?(locator_string)
+
+          control = candidate
+          break
+        end
+      end
+
+      control
+    rescue ::Playwright::Error
+      nil
+    end
+
+    private def _playwright_non_label_candidates(playwright_page, selector)
+      input_type =
+        case selector
+        when :checkbox
+          'checkbox'
+        when :radio_button
+          'radio'
+        else
+          return []
+        end
+
+      scope_element = _playwright_label_click_scope_element
+      return scope_element.query_selector_all(%(input[type="#{input_type}"])) if scope_element
+
+      playwright_page.capybara_current_frame.query_selector_all(%(input[type="#{input_type}"]))
+    end
+
+    private def _playwright_label_click_scope_element
+      return nil unless is_a?(Capybara::Node::Element)
+      return nil unless base.is_a?(Capybara::Playwright::Node)
+
+      base.send(:element)
     end
   end
   if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.7')
