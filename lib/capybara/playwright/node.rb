@@ -48,7 +48,7 @@ module Capybara
         return yield
       end
 
-      return self if _playwright_try_clicking_label(selector, locator, checked: checked)
+      return self if _playwright_try_clicking_label?(selector, locator, checked: checked)
 
       yield
     end
@@ -62,25 +62,25 @@ module Capybara
       true
     end
 
-    private def _playwright_try_clicking_label(selector, locator, checked:)
+    private def _playwright_try_clicking_label?(selector, locator, checked:)
       control = _playwright_find_checkable_by_non_label_locator(selector, locator)
-      return _playwright_try_clicking_associated_label(control, checked: checked) if control
+      return _playwright_try_clicking_associated_label?(control, checked: checked) if control
 
       return false if locator.nil?
 
-      _playwright_try_get_by_label(locator, checked: checked)
+      _playwright_try_get_by_label?(locator, checked: checked)
     rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, ::Playwright::Error
       false
     rescue StandardError
       false
     end
 
-    private def _playwright_try_get_by_label(locator, checked:)
+    private def _playwright_try_get_by_label?(locator, checked:)
       handled = false
       driver.with_playwright_page do |playwright_page|
         begin
           control = playwright_page.get_by_label(locator.to_s)
-          handled = _playwright_try_clicking_associated_label(control, checked: checked)
+          handled = _playwright_try_clicking_associated_label?(control, checked: checked)
         rescue ::Playwright::Error
           handled = false
         end
@@ -91,7 +91,7 @@ module Capybara
       false
     end
 
-    private def _playwright_try_clicking_associated_label(control, checked:)
+    private def _playwright_try_clicking_associated_label?(control, checked:)
       return true if control.evaluate('el => !!el.checked') == checked
 
       label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
