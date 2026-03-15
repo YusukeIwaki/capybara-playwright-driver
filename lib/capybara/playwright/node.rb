@@ -41,7 +41,7 @@ module Capybara
 
       def set_checked_state_via_label?
         playwright_checkable = find_by_non_label_locator
-        playwright_checkable ||= find_by_label unless locator.nil?
+        playwright_checkable ||= find_by_label unless @locator.nil?
         return false unless playwright_checkable
 
         click_associated_label?(playwright_checkable)
@@ -53,31 +53,29 @@ module Capybara
 
       private
 
-      attr_reader :node_context, :selector, :locator, :checked
-
       def find_by_label
         driver.with_playwright_page do |playwright_page|
-          return playwright_page.get_by_label(locator.to_s)
+          return playwright_page.get_by_label(@locator.to_s)
         end
       rescue ::Playwright::Error
         nil
       end
 
       def click_associated_label?(playwright_checkable)
-        return true if playwright_checkable.evaluate('el => !!el.checked') == checked
+        return true if playwright_checkable.evaluate('el => !!el.checked') == @checked
 
         label_element_handle = playwright_checkable.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
         return false unless label_element_handle.is_a?(::Playwright::ElementHandle)
 
         label_element_handle.click
 
-        playwright_checkable.evaluate('el => !!el.checked') == checked
+        playwright_checkable.evaluate('el => !!el.checked') == @checked
       end
 
       def find_by_non_label_locator
-        return nil if locator.nil?
+        return nil if @locator.nil?
 
-        locator_string = locator.to_s
+        locator_string = @locator.to_s
         test_id_attr = session_options.test_id&.to_s
 
         driver.with_playwright_page do |playwright_page|
@@ -98,7 +96,7 @@ module Capybara
 
       def non_label_candidates(playwright_page)
         input_type =
-          case selector
+          case @selector
           when :checkbox
             'checkbox'
           when :radio_button
@@ -114,18 +112,18 @@ module Capybara
       end
 
       def scope_element
-        return nil unless node_context.is_a?(Capybara::Node::Element)
-        return nil unless node_context.send(:base).is_a?(Capybara::Playwright::Node)
+        return nil unless @node_context.is_a?(Capybara::Node::Element)
+        return nil unless @node_context.send(:base).is_a?(Capybara::Playwright::Node)
 
-        node_context.send(:base).send(:element)
+        @node_context.send(:base).send(:element)
       end
 
       def driver
-        node_context.send(:driver)
+        @node_context.send(:driver)
       end
 
       def session_options
-        node_context.send(:session_options)
+        @node_context.send(:session_options)
       end
     end
 
