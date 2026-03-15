@@ -6,6 +6,13 @@ RSpec.describe 'allow_label_click with hidden inputs (ref: https://github.com/Yu
     skip 'allow_label_click native patch is enabled only on Ruby >= 2.7' if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('2.7')
   end
 
+  around do |example|
+    previous_test_id = Capybara.test_id
+    Capybara.test_id = 'data-test-id'
+    example.run
+    Capybara.test_id = previous_test_id
+  end
+
   # USWDS-like styling: hides the actual input off-screen while keeping the label visible.
   # This is a common pattern used by design systems like USWDS, Bootstrap, etc.
   HIDDEN_INPUT_STYLE = <<~CSS
@@ -46,7 +53,7 @@ RSpec.describe 'allow_label_click with hidden inputs (ref: https://github.com/Yu
           <fieldset>
             <legend>Checkboxes</legend>
             <div>
-              <input class="hidden-input" type="checkbox" id="check1" name="agree" value="yes" checked>
+              <input class="hidden-input" type="checkbox" id="check1" name="agree" data-test-id="agree-checkbox" value="yes" checked>
               <label class="visible-label" for="check1">I agree</label>
             </div>
           </fieldset>
@@ -93,6 +100,45 @@ RSpec.describe 'allow_label_click with hidden inputs (ref: https://github.com/Yu
       }
 
       expect(page).to have_checked_field('I agree', visible: :all)
+    end
+
+    it 'does not wait the full default_max_wait_time when passed an id with allow_label_click: true' do
+      visit '/'
+
+      # Uncheck first so we can test check
+      uncheck 'check1', allow_label_click: true
+
+      Timeout.timeout(time_limit) {
+        check 'check1', allow_label_click: true
+      }
+
+      expect(page).to have_checked_field('check1', visible: :all)
+    end
+
+    it 'does not wait the full default_max_wait_time when passed a name with allow_label_click: true' do
+      visit '/'
+
+      # Uncheck first so we can test check
+      uncheck 'agree', allow_label_click: true
+
+      Timeout.timeout(time_limit) {
+        check 'agree', allow_label_click: true
+      }
+
+      expect(page).to have_checked_field('agree', visible: :all)
+    end
+
+    it 'does not wait the full default_max_wait_time when passed a test_id with allow_label_click: true' do
+      visit '/'
+
+      # Uncheck first so we can test check
+      uncheck 'agree-checkbox', allow_label_click: true
+
+      Timeout.timeout(time_limit) {
+        check 'agree-checkbox', allow_label_click: true
+      }
+
+      expect(page).to have_checked_field('agree-checkbox', visible: :all)
     end
   end
 
