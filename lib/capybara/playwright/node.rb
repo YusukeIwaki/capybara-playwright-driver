@@ -41,11 +41,7 @@ module Capybara
 
       def set_checked_state_via_label?
         control = find_by_non_label_locator
-        return click_associated_label?(control) if control
-
-        return false if locator.nil?
-
-        control = find_by_label
+        control ||= find_by_label unless locator.nil?
         return false unless control
 
         click_associated_label?(control)
@@ -60,17 +56,11 @@ module Capybara
       attr_reader :node_context, :selector, :locator, :checked
 
       def find_by_label
-        control = nil
-
         driver.with_playwright_page do |playwright_page|
-          begin
-            control = playwright_page.get_by_label(locator.to_s)
-          rescue ::Playwright::Error
-            control = nil
-          end
+          return playwright_page.get_by_label(locator.to_s)
         end
-
-        control
+      rescue ::Playwright::Error
+        nil
       end
 
       def click_associated_label?(control)
@@ -87,12 +77,11 @@ module Capybara
       def find_by_non_label_locator
         return nil if locator.nil?
 
-        control = nil
         locator_string = locator.to_s
         test_id_attr = session_options.test_id&.to_s
 
         driver.with_playwright_page do |playwright_page|
-          non_label_candidates(playwright_page).each do |candidate|
+          return non_label_candidates(playwright_page).find do |candidate|
             attrs = candidate.evaluate(<<~JAVASCRIPT, arg: test_id_attr)
             (el, testIdAttr) => ({
               id: el.id || '',
@@ -100,14 +89,9 @@ module Capybara
               testId: testIdAttr ? (el.getAttribute(testIdAttr) || '') : '',
             })
             JAVASCRIPT
-            next unless [attrs['id'], attrs['name'], attrs['testId']].include?(locator_string)
-
-            control = candidate
-            break
+            [attrs['id'], attrs['name'], attrs['testId']].include?(locator_string)
           end
         end
-
-        control
       rescue ::Playwright::Error
         nil
       end
