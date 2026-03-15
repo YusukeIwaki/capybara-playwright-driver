@@ -7,8 +7,25 @@
 - Prefer `find`, `any?`, early return, and guard clauses over `value = nil` plus later reassignment.
 - Do not add `attr_reader` for every instance variable in a small internal object. If the state is only used internally, access the instance variable directly.
 - If an object is already scoped to one responsibility, avoid redundant prefixes in every private method name.
+- Do not prefix Ruby private methods with `_`. Use `private` for visibility and a normal method name for intent.
 
 ## Naming Examples
+
+Bad:
+
+```ruby
+def _playwright_try_get_by_label(locator)
+  # ...
+end
+```
+
+Good:
+
+```ruby
+def find_by_label(locator)
+  # ...
+end
+```
 
 Bad:
 
