@@ -198,6 +198,20 @@ module Capybara
   end
   ::Playwright::ElementHandle.prepend(CapybaraObscuredPatch)
 
+  # ref: https://github.com/teamcapybara/capybara/pull/2424
+  module ElementDropPathCompatPatch
+    def drop(*args)
+      options = args.map { |arg| arg.respond_to?(:to_path) ? arg.to_path : arg }
+      synchronize { base.drop(*options) }
+      self
+    end
+  end
+  if Gem::Version.new(Capybara::VERSION) < Gem::Version.new('3.34.0')
+    # Older Capybara returns early for Pathname arguments in Element#drop,
+    # so the driver implementation never runs.
+    Node::Element.prepend(ElementDropPathCompatPatch)
+  end
+
   module Playwright
     # Selector and checking methods are derived from twapole/apparition
     # Action methods (click, select_option, ...) uses playwright.
