@@ -385,12 +385,30 @@ module Capybara
 
       class TextInput < Settable
         def set(value, **options)
+          case options[:clear]
+          when :backspace
+            @element.press('End', timeout: @timeout)
+            existing_text = @element.evaluate('el => el.value')
+            existing_text.length.times { @element.press('Backspace', timeout: @timeout) }
+          when :none
+            @element.press('End', timeout: @timeout)
+          when Array
+            @internal_logger.warn "options { clear: #{options[:clear]} } is ignored"
+          end
+
           text = value.to_s
-          if text.end_with?("\n")
-            @element.fill(text[0...-1], timeout: @timeout)
-            @element.press('Enter', timeout: @timeout)
+          if press_enter = text.end_with?("\n")
+            text = text[0...-1]
+          end
+
+          if options[:clear] == :none
+            @element.type(text, timeout: @timeout)
           else
             @element.fill(text, timeout: @timeout)
+          end
+
+          if press_enter
+            @element.press('Enter', timeout: @timeout)
           end
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
