@@ -40,11 +40,11 @@ module Capybara
       end
 
       def set_checked_state_via_label?
-        control = find_by_non_label_locator
-        control ||= find_by_label unless locator.nil?
-        return false unless control
+        playwright_checkable = find_by_non_label_locator
+        playwright_checkable ||= find_by_label unless locator.nil?
+        return false unless playwright_checkable
 
-        click_associated_label?(control)
+        click_associated_label?(playwright_checkable)
       rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, ::Playwright::Error
         false
       rescue StandardError
@@ -63,15 +63,15 @@ module Capybara
         nil
       end
 
-      def click_associated_label?(control)
-        return true if control.evaluate('el => !!el.checked') == checked
+      def click_associated_label?(playwright_checkable)
+        return true if playwright_checkable.evaluate('el => !!el.checked') == checked
 
-        label = control.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
-        return false unless label.is_a?(::Playwright::ElementHandle)
+        label_element_handle = playwright_checkable.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+        return false unless label_element_handle.is_a?(::Playwright::ElementHandle)
 
-        label.click
+        label_element_handle.click
 
-        control.evaluate('el => !!el.checked') == checked
+        playwright_checkable.evaluate('el => !!el.checked') == checked
       end
 
       def find_by_non_label_locator
@@ -81,15 +81,15 @@ module Capybara
         test_id_attr = session_options.test_id&.to_s
 
         driver.with_playwright_page do |playwright_page|
-          return non_label_candidates(playwright_page).find do |candidate|
-            attrs = candidate.evaluate(<<~JAVASCRIPT, arg: test_id_attr)
+          return non_label_candidates(playwright_page).find do |element_handle|
+            attribute_values = element_handle.evaluate(<<~JAVASCRIPT, arg: test_id_attr)
             (el, testIdAttr) => ({
               id: el.id || '',
               name: el.getAttribute('name') || '',
               testId: testIdAttr ? (el.getAttribute(testIdAttr) || '') : '',
             })
             JAVASCRIPT
-            [attrs['id'], attrs['name'], attrs['testId']].include?(locator_string)
+            [attribute_values['id'], attribute_values['name'], attribute_values['testId']].include?(locator_string)
           end
         end
       rescue ::Playwright::Error
