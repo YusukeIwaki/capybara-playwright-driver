@@ -5,6 +5,9 @@ require 'spec_helper'
 # Ported from https://github.com/teamcapybara/capybara/blob/3.40.0/spec/shared_selenium_session.rb
 RSpec.describe 'fill_in options', sinatra: true do
   before do
+    # Ignore older versions without `#active_element` definition.
+    skip if Gem::Version.new(Capybara::VERSION) < Gem::Version.new('3.36.0')
+
     sinatra.get '/' do
       <<~HTML
         <!DOCTYPE html>
@@ -72,12 +75,14 @@ RSpec.describe 'fill_in options', sinatra: true do
     end
 
     it 'should fill in if the option is set via global option' do
-      Capybara.default_set_options = { clear: :backspace }
-      visit '/'
-      fill_in('form_first_name', with: 'Thomas')
-      expect(find(:fillable_field, 'form_first_name').value).to eq('Thomas')
-    ensure
-      Capybara.default_set_options = {}
+      begin
+        Capybara.default_set_options = { clear: :backspace }
+        visit '/'
+        fill_in('form_first_name', with: 'Thomas')
+        expect(find(:fillable_field, 'form_first_name').value).to eq('Thomas')
+      ensure
+        Capybara.default_set_options = {}
+      end
     end
 
     it 'should only trigger onchange once' do
