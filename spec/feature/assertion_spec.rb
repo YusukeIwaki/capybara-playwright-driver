@@ -56,7 +56,7 @@ RSpec.describe 'assertion', sinatra: true do
     visit '/'
 
     click_on 'go'
-    sleep 0.5
+    sleep 0.6
     refresh
     expect(page).to have_content('finish')
   end

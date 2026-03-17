@@ -91,7 +91,8 @@ module Capybara
 
       def refresh
         assert_page_alive {
-          @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
+          response = @playwright_page.reload
+          @playwright_page.capybara_set_last_response(response)
         }
       end
 
@@ -255,7 +256,8 @@ module Capybara
           when /Element is not attached to the DOM/,
             /Execution context was destroyed, most likely because of a navigation/,
             /Cannot find context with specified id/,
-            /Unable to adopt element handle from a different document/
+            /Unable to adopt element handle from a different document/,
+            /maybe frame was detached/
             # ignore error for retry
             @internal_logger.warn(err.message)
           else
