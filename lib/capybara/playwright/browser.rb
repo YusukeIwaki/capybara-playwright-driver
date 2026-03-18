@@ -89,11 +89,20 @@ module Capybara
         }
       end
 
+      private def firefox?
+        @playwright_browser.browser_type.name == 'firefox'
+      end
+
       def refresh
-        assert_page_alive {
-          response = @playwright_page.reload
-          @playwright_page.capybara_set_last_response(response)
-        }
+        if firefox?
+          # ref: https://github.com/microsoft/playwright/issues/39738
+          @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
+        else
+          assert_page_alive {
+            response = @playwright_page.reload
+            @playwright_page.capybara_set_last_response(response)
+          }
+        end
       end
 
       def find_xpath(query, **options)
