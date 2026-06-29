@@ -258,7 +258,7 @@ module Capybara
       end
 
       private def capybara_default_wait_time
-        Capybara.default_max_wait_time * 1100 # with 10% buffer for allowing overhead.
+        Capybara.default_max_wait_time.to_f * 1100 # with 10% buffer for allowing overhead.
       end
 
       class NotActionableError < StandardError ; end
