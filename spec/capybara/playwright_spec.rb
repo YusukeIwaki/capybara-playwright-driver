@@ -34,9 +34,6 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
     pending 'HTML5 validation message is a bit different.' if ENV['BROWSER'] == 'webkit'
   when /shadow_root should produce error messages when failing/
     pending "Probably Capybara would assume only Selenium driver."
-  when /fill_in should handle carriage returns with line feeds in a textarea correctly/
-    # https://github.com/teamcapybara/capybara/commit/a9dd889b640759925bd04c4991de086160242fae#diff-b62b86ae4de5582bd37146266622e3debbdcab6bab6e95f522185c6a4269067dR82
-    pending "Not sure what firefox is doing here" if ENV['BROWSER'] == 'firefox'
   when /#has_element\? should be true if the given element is on the page/
     pending 'https://github.com/teamcapybara/capybara/pull/2751'
   when /assert_matches_style should raise error if the elements style doesn't contain the given properties/
