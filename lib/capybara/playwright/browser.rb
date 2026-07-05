@@ -329,14 +329,33 @@ module Capybara
 
       def window_size(handle)
         on_window(handle) do |page|
-          page.evaluate('() => [window.innerWidth, window.innerHeight]')
+          outer_window_size(page)
         end
       end
 
       def resize_window_to(handle, width, height)
         on_window(handle) do |page|
-          page.viewport_size = { width: width, height: height }
+          page.viewport_size = viewport_size_for(page, width, height)
         end
+      end
+
+      # Capybara follows Selenium's outer window size semantics.
+      private def outer_window_size(page)
+        page.evaluate('() => [window.outerWidth || window.innerWidth, window.outerHeight || window.innerHeight]')
+      end
+
+      private def viewport_size_for(page, width, height)
+        inset_width, inset_height = page.evaluate(<<~JAVASCRIPT)
+          () => [
+            Math.max(0, (window.outerWidth || window.innerWidth) - window.innerWidth),
+            Math.max(0, (window.outerHeight || window.innerHeight) - window.innerHeight)
+          ]
+        JAVASCRIPT
+
+        {
+          width: [width - inset_width, 0].max,
+          height: [height - inset_height, 0].max
+        }
       end
 
       def maximize_window(handle)
