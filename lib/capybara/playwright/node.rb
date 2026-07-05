@@ -411,15 +411,13 @@ module Capybara
           end
 
           text = value.to_s
-          if press_enter = text.end_with?("\n")
+          if press_enter = text.end_with?("\r\n")
+            text = text[0...-2]
+          elsif press_enter = text.end_with?("\n")
             text = text[0...-1]
           end
 
-          if options[:clear] == :none
-            @element.type(text, timeout: @timeout)
-          else
-            @element.fill(text, timeout: @timeout)
-          end
+          set_text(text, append: options[:clear] == :none)
 
           if press_enter
             @element.press('Enter', timeout: @timeout)
@@ -428,6 +426,25 @@ module Capybara
           raise if @element.editable?
 
           @internal_logger.info("Node#set: element is not editable. #{@element}")
+        end
+
+        private def set_text(text, append:)
+          # ElementHandle#type can refocus inherited contenteditable descendants and drop the input.
+          if @element.evaluate('el => el.isContentEditable') && !append
+            @element.fill(text, timeout: @timeout)
+            return
+          end
+
+          grapheme_clusters = text.scan(/\X/)
+          fill_text = grapheme_clusters[0...-1].join
+          typed_text = grapheme_clusters[-1].to_s
+
+          if append
+            @element.type(fill_text, timeout: @timeout) unless fill_text.empty?
+          else
+            @element.fill(fill_text, timeout: @timeout)
+          end
+          @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
         end
       end
 

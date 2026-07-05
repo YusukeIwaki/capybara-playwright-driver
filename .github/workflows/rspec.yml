@@ -102,6 +102,40 @@ jobs:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 25
 
+  compatibility_test:
+    needs: example_spec
+    name: Compatibility Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.4
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: setup playwright via npm install
+        run: |
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
+          ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Check Chrome for Selenium
+        run: google-chrome --version
+      - name: Run compatibility tests with Selenium
+        run: bundle exec rspec spec/compatibility/
+        env:
+          COMPATIBILITY_DRIVER: selenium_chrome_headless
+        timeout-minutes: 10
+      - name: Run compatibility tests with Playwright
+        run: bundle exec rspec spec/compatibility/
+        env:
+          BROWSER: chromium
+          COMPATIBILITY_DRIVER: playwright
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 10
+
   playwright_driver_spec_firefox:
     needs: example_spec
     name: (firefox) Playwright Driver
