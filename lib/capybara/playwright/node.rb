@@ -429,7 +429,9 @@ module Capybara
         end
 
         private def set_text(text, append:)
-          fill_text, typed_text = split_trailing_grapheme(text)
+          grapheme_clusters = text.scan(/\X/)
+          fill_text = grapheme_clusters[0...-1].join
+          typed_text = grapheme_clusters[-1].to_s
 
           if append
             @element.type(fill_text, timeout: @timeout) unless fill_text.empty?
@@ -437,12 +439,6 @@ module Capybara
             @element.fill(fill_text, timeout: @timeout)
           end
           @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
-        end
-
-        private def split_trailing_grapheme(text)
-          grapheme_clusters = text.scan(/\X/)
-
-          [grapheme_clusters[0...-1].join, grapheme_clusters[-1].to_s]
         end
       end
 
