@@ -417,11 +417,7 @@ module Capybara
             text = text[0...-1]
           end
 
-          if @element.evaluate('el => el.isContentEditable') && options[:clear] != :none
-            @element.fill(text, timeout: @timeout)
-          else
-            set_text(text, append: options[:clear] == :none)
-          end
+          set_text(text, append: options[:clear] == :none)
 
           if press_enter
             @element.press('Enter', timeout: @timeout)
@@ -433,6 +429,12 @@ module Capybara
         end
 
         private def set_text(text, append:)
+          # ElementHandle#type can refocus inherited contenteditable descendants and drop the input.
+          if @element.evaluate('el => el.isContentEditable') && !append
+            @element.fill(text, timeout: @timeout)
+            return
+          end
+
           grapheme_clusters = text.scan(/\X/)
           fill_text = grapheme_clusters[0...-1].join
           typed_text = grapheme_clusters[-1].to_s
