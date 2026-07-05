@@ -435,6 +435,11 @@ module Capybara
             return
           end
 
+          if text.include?("\t")
+            type_tab_separated_text(text, append: append)
+            return
+          end
+
           grapheme_clusters = text.scan(/\X/)
           fill_text = grapheme_clusters[0...-1].join
           typed_text = grapheme_clusters[-1].to_s
@@ -445,6 +450,17 @@ module Capybara
             @element.fill(fill_text, timeout: @timeout)
           end
           @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
+        end
+
+        private def type_tab_separated_text(text, append:)
+          head, *tail = text.split("\t", -1)
+          set_text(head, append: append)
+          keyboard = @element.owner_frame.page.keyboard
+
+          tail.each do |part|
+            keyboard.press('Tab')
+            keyboard.type(part) unless part.empty?
+          end
         end
       end
 
