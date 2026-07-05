@@ -417,7 +417,11 @@ module Capybara
             text = text[0...-1]
           end
 
-          set_text(text, append: options[:clear] == :none)
+          if @element.evaluate('el => el.isContentEditable') && options[:clear] != :none
+            @element.fill(text, timeout: @timeout)
+          else
+            set_text(text, append: options[:clear] == :none)
+          end
 
           if press_enter
             @element.press('Enter', timeout: @timeout)
