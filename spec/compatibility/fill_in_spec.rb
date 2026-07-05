@@ -37,6 +37,12 @@ RSpec.describe 'fill_in compatibility', type: :feature, sinatra: true do
     end
   end
 
-  include_examples 'keyup-compatible fill_in', :selenium_chrome_headless
-  include_examples 'keyup-compatible fill_in', :playwright
+  compatibility_drivers = ENV.fetch('COMPATIBILITY_DRIVER', 'selenium_chrome_headless,playwright')
+                             .split(',')
+                             .map(&:strip)
+                             .map(&:to_sym)
+
+  compatibility_drivers.each do |driver_name|
+    include_examples 'keyup-compatible fill_in', driver_name
+  end
 end
