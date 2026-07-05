@@ -417,12 +417,7 @@ module Capybara
             text = text[0...-1]
           end
 
-          if options[:clear] == :none
-            @element.type(text, timeout: @timeout)
-          else
-            @element.fill(text, timeout: @timeout)
-            @element.dispatch_event('keyup')
-          end
+          set_text(text, append: options[:clear] == :none)
 
           if press_enter
             @element.press('Enter', timeout: @timeout)
@@ -431,6 +426,23 @@ module Capybara
           raise if @element.editable?
 
           @internal_logger.info("Node#set: element is not editable. #{@element}")
+        end
+
+        private def set_text(text, append:)
+          fill_text, typed_text = split_trailing_grapheme(text)
+
+          if append
+            @element.type(fill_text, timeout: @timeout) unless fill_text.empty?
+          else
+            @element.fill(fill_text, timeout: @timeout)
+          end
+          @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
+        end
+
+        private def split_trailing_grapheme(text)
+          grapheme_clusters = text.scan(/\X/)
+
+          [grapheme_clusters[0...-1].join, grapheme_clusters[-1].to_s]
         end
       end
 
