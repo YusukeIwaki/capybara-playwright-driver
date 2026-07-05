@@ -22,6 +22,21 @@ RSpec.configure do |config|
     metadata[:type] = :feature
   end
 
+  config.define_derived_metadata(file_path: %r(/spec/compatibility/)) do |metadata|
+    metadata[:type] = :feature
+    metadata[:compatibility_test] = true
+  end
+
+  config.around(:each, :compatibility_test) do |example|
+    if ENV['DRIVER'] && !ENV['DRIVER'].empty?
+      Capybara.using_driver(ENV['DRIVER'].to_sym) do
+        example.run
+      end
+    else
+      example.run
+    end
+  end
+
   config.around(:each, sinatra: true) do |example|
     @sinatra = Class.new(Sinatra::Base)
 

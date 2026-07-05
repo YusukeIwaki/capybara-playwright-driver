@@ -2,12 +2,6 @@
 
 require 'date'
 require 'spec_helper'
-require 'selenium-webdriver'
-
-FILL_IN_COMPATIBILITY_DRIVERS = ENV.fetch('COMPATIBILITY_DRIVER', 'selenium_chrome_headless,playwright')
-                                   .split(',')
-                                   .map(&:strip)
-                                   .map(&:to_sym)
 
 FILL_IN_FORM_HTML = <<~HTML
   <!DOCTYPE html>
@@ -82,165 +76,7 @@ FILL_IN_HELPERS = Module.new do
   end
 end
 
-RSpec.shared_examples 'keyup-compatible fill_in' do |driver_name|
-  it "triggers keyup events with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/keyup'
-
-      fill_in 'Body', with: 'updated FAQ'
-
-      expect(find(:fillable_field, 'Body').value).to eq('updated FAQ')
-      expect(find(:css, '#preview')).to have_text('updated FAQ')
-    end
-  end
-end
-
-RSpec.shared_examples 'backspace-clear-compatible fill_in' do |driver_name|
-  it "replaces an existing value with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
-    end
-  end
-
-  it "replaces an existing value even with caret position with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      find(:css, '#form_first_name').execute_script <<~JS
-        this.focus();
-        this.setSelectionRange(0, 0);
-      JS
-
-      fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
-    end
-  end
-end
-
-RSpec.shared_examples 'event-compatible fill_in clear' do |driver_name|
-  it "triggers onchange once with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('with_change_event', with: 'some value', fill_options: { clear: :backspace })
-      find(:css, '#with_focus_event').click
-
-      expect(find(:css, '.change_event_triggered', match: :one, wait: 5)).to have_text 'some value'
-    end
-  end
-
-  it "triggers change when clearing a field with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('with_change_event', with: '', fill_options: { clear: :backspace })
-      find(:css, '#with_focus_event').click
-
-      expect(page).to have_selector(:css, '.change_event_triggered', match: :one, wait: 5, visible: :all)
-    end
-  end
-
-  it "triggers input events per backspace with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('with_change_event', with: '', fill_options: { clear: :backspace })
-      find(:css, 'h1', text: 'Form').click
-
-      expect(page).to have_css('p.input_event_triggered', count: 13, wait: 5, visible: :all)
-    end
-  end
-end
-
-RSpec.shared_examples 'default-set-options-compatible fill_in' do |driver_name|
-  it "uses Capybara.default_set_options with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      begin
-        Capybara.default_set_options = { clear: :backspace }
-        visit '/'
-        fill_in('form_first_name', with: 'Thomas')
-
-        expect(find(:fillable_field, 'form_first_name').value).to eq('Thomas')
-      ensure
-        Capybara.default_set_options = {}
-      end
-    end
-  end
-end
-
-RSpec.shared_examples 'none-clear-compatible fill_in' do |driver_name|
-  it "appends with clear: :none and #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('form_first_name', with: 'Harry', fill_options: { clear: :none })
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq('JohnHarry')
-    end
-  end
-
-  it "works with rapid fill and clear: :none with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      long_string = (0...60).map { |i| ((i % 26) + 65).chr }.join
-      visit '/'
-      fill_in('form_first_name', with: long_string, fill_options: { clear: :none })
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq("John#{long_string}")
-    end
-  end
-end
-
-RSpec.shared_examples 'array-clear-compatible fill_in' do |driver_name|
-  it "passes clear key arrays through with #{driver_name}" do
-    pending 'clear: Array is not supported by capybara-playwright-driver yet' if driver_name == :playwright
-
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('form_first_name',
-              with: 'Harry',
-              fill_options: { clear: [[:shift, 'abc'], :backspace] })
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq('JohnABHarry')
-    end
-  end
-end
-
-RSpec.shared_examples 'date-compatible fill_in' do |driver_name|
-  it "generates standard events when changing date values with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      track_form_date_events
-
-      fill_in('form_date', with: Date.today)
-
-      expect(evaluate_script('window.capybara_formDateFiredEvents')).to eq %w[focus input change]
-    end
-  end
-
-  it "does not generate input and change events if the value is not changed with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      track_form_date_events
-
-      fill_in('form_date', with: Date.today)
-      fill_in('form_date', with: Date.today)
-
-      expect(evaluate_script('window.capybara_formDateFiredEvents')).to eq %w[focus input change]
-    end
-  end
-end
-
-RSpec.shared_examples 'emoji-compatible fill_in' do |driver_name|
-  it "sends emojis with #{driver_name}" do
-    Capybara.using_driver(driver_name) do
-      visit '/'
-      fill_in('form_first_name', with: FILL_IN_EMOJI_TEXT)
-
-      expect(find(:fillable_field, 'form_first_name').value).to eq(FILL_IN_EMOJI_TEXT)
-    end
-  end
-end
-
-RSpec.describe 'fill_in compatibility', type: :feature, sinatra: true do
+RSpec.describe 'fill_in compatibility', sinatra: true do
   include FILL_IN_HELPERS
 
   before do
@@ -248,14 +84,119 @@ RSpec.describe 'fill_in compatibility', type: :feature, sinatra: true do
     sinatra.get('/keyup') { FILL_IN_KEYUP_TEXTAREA_HTML }
   end
 
-  FILL_IN_COMPATIBILITY_DRIVERS.each do |driver_name|
-    include_examples 'keyup-compatible fill_in', driver_name
-    include_examples 'backspace-clear-compatible fill_in', driver_name
-    include_examples 'event-compatible fill_in clear', driver_name
-    include_examples 'default-set-options-compatible fill_in', driver_name
-    include_examples 'none-clear-compatible fill_in', driver_name
-    include_examples 'array-clear-compatible fill_in', driver_name
-    include_examples 'date-compatible fill_in', driver_name
-    include_examples 'emoji-compatible fill_in', driver_name
+  it 'triggers keyup events' do
+    visit '/keyup'
+
+    fill_in 'Body', with: 'updated FAQ'
+
+    expect(find(:fillable_field, 'Body').value).to eq('updated FAQ')
+    expect(find(:css, '#preview')).to have_text('updated FAQ')
+  end
+
+  it 'replaces an existing value' do
+    visit '/'
+    fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
+  end
+
+  it 'replaces an existing value even with caret position' do
+    visit '/'
+    find(:css, '#form_first_name').execute_script <<~JS
+      this.focus();
+      this.setSelectionRange(0, 0);
+    JS
+
+    fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
+  end
+
+  it 'triggers onchange once' do
+    visit '/'
+    fill_in('with_change_event', with: 'some value', fill_options: { clear: :backspace })
+    find(:css, '#with_focus_event').click
+
+    expect(find(:css, '.change_event_triggered', match: :one, wait: 5)).to have_text 'some value'
+  end
+
+  it 'triggers change when clearing a field' do
+    visit '/'
+    fill_in('with_change_event', with: '', fill_options: { clear: :backspace })
+    find(:css, '#with_focus_event').click
+
+    expect(page).to have_selector(:css, '.change_event_triggered', match: :one, wait: 5, visible: :all)
+  end
+
+  it 'triggers input events per backspace' do
+    visit '/'
+    fill_in('with_change_event', with: '', fill_options: { clear: :backspace })
+    find(:css, 'h1', text: 'Form').click
+
+    expect(page).to have_css('p.input_event_triggered', count: 13, wait: 5, visible: :all)
+  end
+
+  it 'uses Capybara.default_set_options' do
+    begin
+      Capybara.default_set_options = { clear: :backspace }
+      visit '/'
+      fill_in('form_first_name', with: 'Thomas')
+
+      expect(find(:fillable_field, 'form_first_name').value).to eq('Thomas')
+    ensure
+      Capybara.default_set_options = {}
+    end
+  end
+
+  it 'appends with clear: :none' do
+    visit '/'
+    fill_in('form_first_name', with: 'Harry', fill_options: { clear: :none })
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq('JohnHarry')
+  end
+
+  it 'works with rapid fill and clear: :none' do
+    long_string = (0...60).map { |i| ((i % 26) + 65).chr }.join
+    visit '/'
+    fill_in('form_first_name', with: long_string, fill_options: { clear: :none })
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq("John#{long_string}")
+  end
+
+  it 'passes clear key arrays through' do
+    pending 'clear: Array is not supported by capybara-playwright-driver yet' if Capybara.current_driver == :playwright
+
+    visit '/'
+    fill_in('form_first_name',
+            with: 'Harry',
+            fill_options: { clear: [[:shift, 'abc'], :backspace] })
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq('JohnABHarry')
+  end
+
+  it 'generates standard events when changing date values' do
+    visit '/'
+    track_form_date_events
+
+    fill_in('form_date', with: Date.today)
+
+    expect(evaluate_script('window.capybara_formDateFiredEvents')).to eq %w[focus input change]
+  end
+
+  it 'does not generate input and change events if the value is not changed' do
+    visit '/'
+    track_form_date_events
+
+    fill_in('form_date', with: Date.today)
+    fill_in('form_date', with: Date.today)
+
+    expect(evaluate_script('window.capybara_formDateFiredEvents')).to eq %w[focus input change]
+  end
+
+  it 'sends emojis' do
+    visit '/'
+    fill_in('form_first_name', with: FILL_IN_EMOJI_TEXT)
+
+    expect(find(:fillable_field, 'form_first_name').value).to eq(FILL_IN_EMOJI_TEXT)
   end
 end
