@@ -126,13 +126,13 @@ jobs:
       - name: Run compatibility tests with Selenium
         run: bundle exec rspec spec/compatibility/
         env:
-          COMPATIBILITY_DRIVER: selenium_chrome_headless
+          DRIVER: selenium_chrome_headless
         timeout-minutes: 10
       - name: Run compatibility tests with Playwright
         run: bundle exec rspec spec/compatibility/
         env:
           BROWSER: chromium
-          COMPATIBILITY_DRIVER: playwright
+          DRIVER: playwright
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 10
 
