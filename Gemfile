@@ -15,6 +15,7 @@ gem 'rack-test_server'
 gem 'rake', '~> 13.0.3'
 gem 'rspec', '~> 3.11.0'
 gem 'rubocop-rspec'
+gem 'selenium-webdriver', '~> 4.34.0' if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.2')
 gem 'sinatra', '>= 1.4.0'
 gem 'webrick'
 gem 'websocket-driver'

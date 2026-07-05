@@ -105,3 +105,11 @@ end
 ## General Guidance
 - Prefer concise Ruby that reads top-to-bottom without carrying unnecessary temporary state.
 - Prefer small private helper objects only when they reduce complexity. Once extracted, give them Ruby-like method names and keep their public surface minimal.
+
+## How to execute RSpec or Ruby
+
+`ruby` uses macOS system ruby interpreter (typically 2.6 or older). rbenv should be used.
+
+- Do not run the full `spec/capybara/playwright_spec.rb` or full RSpec suite locally; run broad coverage in GitHub Actions.
+- To run a focused Playwright compatibility check locally, use an example filter, for example:
+  `RBENV_VERSION=$(cat .ruby-version) ~/.rbenv/shims/bundle exec rspec spec/capybara/playwright_spec.rb --example fill_in`

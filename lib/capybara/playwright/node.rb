@@ -411,7 +411,9 @@ module Capybara
           end
 
           text = value.to_s
-          if press_enter = text.end_with?("\n")
+          if press_enter = text.end_with?("\r\n")
+            text = text[0...-2]
+          elsif press_enter = text.end_with?("\n")
             text = text[0...-1]
           end
 
@@ -419,6 +421,7 @@ module Capybara
             @element.type(text, timeout: @timeout)
           else
             @element.fill(text, timeout: @timeout)
+            @element.dispatch_event('keyup')
           end
 
           if press_enter
