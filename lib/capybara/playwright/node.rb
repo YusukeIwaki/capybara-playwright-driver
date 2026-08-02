@@ -435,6 +435,12 @@ module Capybara
             return
           end
 
+          if !append && @element.evaluate('el => el.type === "number"')
+            @element.fill('', timeout: @timeout)
+            @element.type(text, timeout: @timeout) unless text.empty?
+            return
+          end
+
           if text.include?("\t")
             type_tab_separated_text(text, append: append)
             return

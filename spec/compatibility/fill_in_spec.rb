@@ -17,6 +17,10 @@ FILL_IN_FORM_HTML = <<~HTML
         Date
         <input type="date" name="form[date]" id="form_date"/>
       </label>
+      <label for="form_amount">
+        Amount
+        <input type="number" name="form[amount]" id="form_amount"/>
+      </label>
     </form>
     <input type="text" name="with_change_event" value="default value" id="with_change_event"/>
     <input type="text" name="with_focus_event" value="" id="with_focus_event"/>
@@ -110,6 +114,13 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
 
     expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
+  end
+
+  it 'fills negative numbers' do
+    visit '/'
+    fill_in('form_amount', with: '-7')
+
+    expect(find(:fillable_field, 'form_amount').value).to eq('-7')
   end
 
   it 'triggers onchange once' do
