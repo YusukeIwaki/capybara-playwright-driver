@@ -64,6 +64,8 @@ module Capybara
               raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
             end
             @browser_options = BrowserOptions.new(options)
+
+            check_version_compatibility
           end
 
           def get_version_from_playwright_cli
@@ -88,11 +90,10 @@ module Capybara
 
             return if node_module_version.strip == compatible_version
 
-            raise "Incompatible Playwright version. Found: #{node_module_version.strip.inspect}. Expected: #{compatible_version}. Please install the compatible version of Playwright:\nnpm install playwright@#{compatible_version }"
+            raise "Playwright version mismatch. Found: #{node_module_version.strip.inspect}. Expected: #{compatible_version}. Please install the compatible version of Playwright:\nnpm install playwright@#{compatible_version }"
           end
 
           def playwright_execution
-            check_version_compatibility
             @playwright_execution ||= ::Playwright.create(
               playwright_cli_executable_path: @playwright_cli_executable_path,
             )
