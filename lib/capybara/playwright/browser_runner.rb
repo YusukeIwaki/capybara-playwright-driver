@@ -66,7 +66,26 @@ module Capybara
             @browser_options = BrowserOptions.new(options)
           end
 
+          def _fetch_node_version
+            node_module_version = `#{@playwright_cli_executable_path} --version`
+            regex = /Version (\d+\.\d+\.\d+)/
+
+            extracted_version = node_module_version.match(regex)&.captures&.first
+            if extracted_version.nil?
+              raise "Could not extract Playwright version from output: #{node_module_version.inspect}"
+            end
+
+            extracted_version
+          end
+
           def playwright_execution
+            node_module_version = _fetch_node_version
+            compatible_version = ::Playwright::COMPATIBLE_PLAYWRIGHT_VERSION
+
+            if node_module_version.strip != compatible_version
+              raise "Incompatible Playwright version. Found: #{node_module_version.strip.inspect}. Expected: #{compatible_version}. Please install the compatible version of Playwright:\nnpm install playwright@#{compatible_version }"
+            end
+
             @playwright_execution ||= ::Playwright.create(
               playwright_cli_executable_path: @playwright_cli_executable_path,
             )
