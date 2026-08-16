@@ -17,6 +17,10 @@ FILL_IN_FORM_HTML = <<~HTML
         Date
         <input type="date" name="form[date]" id="form_date"/>
       </label>
+      <label for="form_amount">
+        Amount
+        <input type="number" name="form[amount]" id="form_amount"/>
+      </label>
     </form>
     <input type="text" name="with_change_event" value="default value" id="with_change_event"/>
     <input type="text" name="with_focus_event" value="" id="with_focus_event"/>
@@ -74,6 +78,15 @@ FILL_IN_HELPERS = Module.new do
     JS
     find(:css, 'h1', text: 'Form').click
   end
+
+  def track_form_amount_keys
+    find(:css, '#form_amount').execute_script <<~JS
+      window.capybara_formAmountKeydownEvents = [];
+      this.addEventListener('keydown', function(event) {
+        window.capybara_formAmountKeydownEvents.push(event.key);
+      });
+    JS
+  end
 end
 
 RSpec.describe 'fill_in compatibility', sinatra: true do
@@ -110,6 +123,33 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     fill_in('form_first_name', with: 'Harry', fill_options: { clear: :backspace })
 
     expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
+  end
+
+  it 'fills a negative number' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '-7')
+
+    expect(find(:fillable_field, 'form_amount').value).to eq('-7')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[- 7]
+  end
+
+  it 'fills a number with a leading decimal point' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '.5')
+
+    expect(find(:fillable_field, 'form_amount').value).to eq('.5')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[. 5]
+  end
+
+  it 'fills a number in exponent notation' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '1e3')
+
+    expect(find(:fillable_field, 'form_amount').value).to eq('1e3')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[1 e 3]
   end
 
   it 'triggers onchange once' do

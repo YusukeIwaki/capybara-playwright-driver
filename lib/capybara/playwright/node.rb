@@ -440,6 +440,11 @@ module Capybara
             return
           end
 
+          if number_input? && !append
+            replace_number_text(text)
+            return
+          end
+
           grapheme_clusters = text.scan(/\X/)
           fill_text = grapheme_clusters[0...-1].join
           typed_text = grapheme_clusters[-1].to_s
@@ -450,6 +455,20 @@ module Capybara
             @element.fill(fill_text, timeout: @timeout)
           end
           @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
+        end
+
+        private def number_input?
+          @element.evaluate('el => el.type === "number"')
+        end
+
+        private def replace_number_text(text)
+          if text.empty?
+            @element.fill('', timeout: @timeout)
+            return
+          end
+
+          @element.select_text(timeout: @timeout)
+          @element.type(text, timeout: @timeout)
         end
 
         private def type_tab_separated_text(text, append:)
