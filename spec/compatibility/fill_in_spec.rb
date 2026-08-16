@@ -125,17 +125,31 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     expect(find(:fillable_field, 'form_first_name').value).to eq('Harry')
   end
 
-  it 'fills number values with incomplete prefixes' do
+  it 'fills a negative number' do
     visit '/'
     track_form_amount_keys
+    fill_in('form_amount', with: '-7')
 
-    %w[-7 .5 1e3].each do |value|
-      fill_in('form_amount', with: value)
+    expect(find(:fillable_field, 'form_amount').value).to eq('-7')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[- 7]
+  end
 
-      expect(find(:fillable_field, 'form_amount').value).to eq(value)
-    end
+  it 'fills a number with a leading decimal point' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '.5')
 
-    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[- 7 . 5 1 e 3]
+    expect(find(:fillable_field, 'form_amount').value).to eq('.5')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[. 5]
+  end
+
+  it 'fills a number in exponent notation' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '1e3')
+
+    expect(find(:fillable_field, 'form_amount').value).to eq('1e3')
+    expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[1 e 3]
   end
 
   it 'triggers onchange once' do
