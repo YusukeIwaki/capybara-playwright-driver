@@ -1,3 +1,5 @@
+require 'open3'
+
 module Capybara
     module Playwright
       # playwright-ruby-client provides 3 methods to launch/connect browser.
@@ -64,6 +66,8 @@ module Capybara
               raise ArgumentError.new("Unknown browser_type: #{@browser_type}")
             end
             @browser_options = BrowserOptions.new(options)
+
+            check_version_compatibility
           end
 
           def playwright_execution
@@ -76,6 +80,30 @@ module Capybara
             browser_type = playwright_execution.playwright.send(@browser_type)
             browser_options = @browser_options.value
             browser_type.launch(**browser_options)
+          end
+
+          private
+
+          def playwright_cli_version
+            stdout, stderr, status = Open3.capture3("#{@playwright_cli_executable_path} --version")
+            unless status.success?
+              output = stderr.empty? ? stdout : stderr
+              raise "Could not get Playwright version (exit #{status.exitstatus}): #{output.strip.inspect}"
+            end
+
+            stdout[/Version\s+(\S+)/, 1] ||
+              raise("Could not extract Playwright version from output: #{stdout.inspect}")
+          end
+
+          def check_version_compatibility
+            node_module_version = playwright_cli_version
+            compatible_version = ::Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip
+
+            return if node_module_version == compatible_version
+
+            raise "Playwright version mismatch. Found: #{node_module_version.inspect}. " \
+              "Expected: #{compatible_version}.\nPlease install the compatible version of Playwright:\n" \
+              "npm install playwright@#{compatible_version}"
           end
         end
 
