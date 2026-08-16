@@ -67,10 +67,10 @@ RSpec.describe 'Example' do
     visit '/'
     expect(status_code).to eq(200)
 
-    first('div.search-input-container').click
-    fill_in('query-builder-test', with: 'Capybara')
-
-    first('[aria-label="Capybara, Search all of GitHub"]').click
+    find('button[aria-label^="Search or jump to"]').click
+    search_field = find('input[aria-label="Search or jump to"]')
+    search_field.fill_in(with: 'Capybara')
+    search_field.send_keys(:enter)
 
     all('[data-testid="results-list"] h3').each do |li|
       puts "#{li.all('a').first.text} by Capybara"
@@ -80,11 +80,11 @@ RSpec.describe 'Example' do
   it 'search capybara using Playwright-native selector and action' do
     Capybara.app_host = 'https://github.com'
     visit '/'
-    first('div.search-input-container').click
-    fill_in('query-builder-test', with: 'Capybara')
+    find('button[aria-label^="Search or jump to"]').click
+    find('input[aria-label="Search or jump to"]').fill_in(with: 'Capybara')
 
     page.driver.with_playwright_page do |page|
-      page.get_by_label('Capybara, Search all of GitHub').click
+      page.get_by_label('Search or jump to', exact: true).press('Enter')
     end
 
     all('[data-testid="results-list"] h3').each do |li|
@@ -97,9 +97,9 @@ RSpec.describe 'Example' do
       Capybara.app_host = 'https://github.com'
       visit '/'
 
-      find('body').send_keys ['s']
+      find('body').send_keys ['/']
 
-      expect(page).to have_field('query-builder-test')
+      expect(page).to have_css('input[aria-label="Search or jump to"]')
     end
 
     it 'can send keys with modifier' do

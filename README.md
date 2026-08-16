@@ -26,13 +26,14 @@ Capybara.save_path = 'tmp/capybara'
 # run
 Capybara.app_host = 'https://github.com'
 visit '/'
-first('div.search-input-container').click
-fill_in('query-builder-test', with: 'Capybara')
+find('button[aria-label^="Search or jump to"]').click
+search_field = find('input[aria-label="Search or jump to"]')
+search_field.fill_in(with: 'Capybara')
 
 ## [REMARK] We can use Playwright-native selector and action, instead of Capybara DSL.
-# first('[aria-label="Capybara, Search all of GitHub"]').click
+# search_field.send_keys(:enter)
 page.driver.with_playwright_page do |page|
-  page.get_by_label('Capybara, Search all of GitHub').click
+  page.get_by_label('Search or jump to', exact: true).press('Enter')
 end
 
 all('[data-testid="results-list"] h3').each do |li|
