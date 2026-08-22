@@ -115,7 +115,7 @@ RSpec.describe 'Example' do
       Capybara.app_host = 'https://github.com'
       visit '/'
 
-      expect_any_instance_of(Playwright::ElementHandle).to receive(:press).with('Shift+Home')
+      expect_any_instance_of(Playwright::Keyboard).to receive(:press).with('Shift+Home')
 
       find('body').send_keys %i[shift home]
     end
