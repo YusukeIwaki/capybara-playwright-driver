@@ -398,6 +398,9 @@ module Capybara
       end
 
       class TextInput < Settable
+        # Typing multi-kilobyte text can exceed Capybara's default wait time.
+        MAXIMUM_TYPED_TEXT_LENGTH = 1_000
+
         def set(value, **options)
           case options[:clear]
           when :backspace
@@ -440,11 +443,24 @@ module Capybara
             return
           end
 
-          if number_input? && !append
-            replace_number_text(text)
+          text = text.gsub(/\r\n?/, "\n")
+
+          if text.length > MAXIMUM_TYPED_TEXT_LENGTH
+            set_long_text(text, append: append)
             return
           end
 
+          if append
+            @element.type(text, timeout: @timeout) unless text.empty?
+          elsif text.empty?
+            @element.fill('', timeout: @timeout)
+          else
+            @element.select_text(timeout: @timeout)
+            @element.type(text, timeout: @timeout)
+          end
+        end
+
+        private def set_long_text(text, append:)
           grapheme_clusters = text.scan(/\X/)
           fill_text = grapheme_clusters[0...-1].join
           typed_text = grapheme_clusters[-1].to_s
@@ -455,20 +471,6 @@ module Capybara
             @element.fill(fill_text, timeout: @timeout)
           end
           @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
-        end
-
-        private def number_input?
-          @element.evaluate('el => el.type === "number"')
-        end
-
-        private def replace_number_text(text)
-          if text.empty?
-            @element.fill('', timeout: @timeout)
-            return
-          end
-
-          @element.select_text(timeout: @timeout)
-          @element.type(text, timeout: @timeout)
         end
 
         private def type_tab_separated_text(text, append:)
@@ -757,8 +759,8 @@ module Capybara
           command: 'Meta',
         }
 
-        def initialize(element_or_keyboard, keys)
-          @element_or_keyboard = element_or_keyboard
+        def initialize(target, keys)
+          @target = target
 
           holding_keys = []
           @executables = keys.each_with_object([]) do |key, executables|
@@ -823,9 +825,44 @@ module Capybara
         end
 
         def execute
+          keyboard = keyboard_for_target
           @executables.each do |executable|
-            executable.execute_for(@element_or_keyboard)
+            executable.execute_for(keyboard)
           end
+        end
+
+        private def keyboard_for_target
+          return @target unless @target.is_a?(::Playwright::ElementHandle)
+
+          focus_for_typing
+          @target.owner_frame.page.keyboard
+        end
+
+        private def focus_for_typing
+          @target.evaluate(<<~JAVASCRIPT)
+            element => {
+              if (element.ownerDocument.activeElement === element) return;
+
+              element.focus();
+              if (element.isContentEditable) {
+                const selection = element.ownerDocument.getSelection();
+                const range = element.ownerDocument.createRange();
+                range.selectNodeContents(element);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                return;
+              }
+
+              if (typeof element.setSelectionRange === 'function') {
+                try {
+                  element.setSelectionRange(element.value.length, element.value.length);
+                } catch (error) {
+                  // Some input types expose setSelectionRange but do not support it.
+                }
+              }
+            }
+          JAVASCRIPT
         end
 
         class PressKey
