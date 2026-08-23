@@ -398,9 +398,6 @@ module Capybara
       end
 
       class TextInput < Settable
-        # Typing multi-kilobyte text can exceed Capybara's default wait time.
-        MAXIMUM_TYPED_TEXT_LENGTH = 1_000
-
         def set(value, **options)
           case options[:clear]
           when :backspace
@@ -442,11 +439,6 @@ module Capybara
 
           if text.include?("\t")
             type_tab_separated_text(text, append: append)
-            return
-          end
-
-          if !append && text.length > MAXIMUM_TYPED_TEXT_LENGTH
-            @element.fill(text, timeout: @timeout)
             return
           end
 

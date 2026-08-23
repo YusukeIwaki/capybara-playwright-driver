@@ -56,9 +56,6 @@ editor.send_keys(:end, '@') # The page moves focus to an autocomplete control.
 editor.send_keys(:end, 'alice')
 ```
 
-For large replacement values, `fill_in` uses Playwright's fast `fill` action and therefore does not emit per-character
-keyboard events.
-
 ## Development
 
 Prepare to run tests:
