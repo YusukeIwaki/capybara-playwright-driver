@@ -44,6 +44,21 @@ end
 
 Refer the [documentation](https://playwright-ruby-client.vercel.app/docs/article/guides/rails_integration) for more detailed configuration.
 
+## Selenium compatibility
+
+This driver delegates keyboard focus and caret behavior to Playwright rather than overriding it with JavaScript. One
+observable difference is that when a `contenteditable` element loses focus between `send_keys` calls, Playwright may
+place the caret differently from Selenium when the element is focused again. Specify the caret movement explicitly
+when the test depends on it:
+
+```ruby
+editor.send_keys(:end, '@') # The page moves focus to an autocomplete control.
+editor.send_keys(:end, 'alice')
+```
+
+For large replacement values, `fill_in` uses Playwright's fast `fill` action and therefore does not emit per-character
+keyboard events.
+
 ## Development
 
 Prepare to run tests:

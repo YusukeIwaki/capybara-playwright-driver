@@ -398,6 +398,9 @@ module Capybara
       end
 
       class TextInput < Settable
+        # Typing multi-kilobyte text can exceed Capybara's default wait time.
+        MAXIMUM_TYPED_TEXT_LENGTH = 1_000
+
         def set(value, **options)
           case options[:clear]
           when :backspace
@@ -435,40 +438,37 @@ module Capybara
             return
           end
 
+          text = text.gsub(/\r\n?/, "\n")
+
           if text.include?("\t")
             type_tab_separated_text(text, append: append)
             return
           end
 
-          if number_input? && !append
-            replace_number_text(text)
+          if !append && text.length > MAXIMUM_TYPED_TEXT_LENGTH
+            @element.fill(text, timeout: @timeout)
             return
           end
 
-          grapheme_clusters = text.scan(/\X/)
-          fill_text = grapheme_clusters[0...-1].join
-          typed_text = grapheme_clusters[-1].to_s
-
+          keyboard = @element.owner_frame.page.keyboard
           if append
-            @element.type(fill_text, timeout: @timeout) unless fill_text.empty?
-          else
-            @element.fill(fill_text, timeout: @timeout)
-          end
-          @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
-        end
-
-        private def number_input?
-          @element.evaluate('el => el.type === "number"')
-        end
-
-        private def replace_number_text(text)
-          if text.empty?
+            type_text(keyboard, text)
+          elsif text.empty?
             @element.fill('', timeout: @timeout)
-            return
+          else
+            @element.select_text(timeout: @timeout)
+            type_text(keyboard, text)
           end
+        end
 
-          @element.select_text(timeout: @timeout)
-          @element.type(text, timeout: @timeout)
+        private def type_text(keyboard, text)
+          head, *tail = text.split("\n", -1)
+          keyboard.type(head) unless head.empty?
+
+          tail.each do |part|
+            keyboard.press('Enter')
+            keyboard.type(part) unless part.empty?
+          end
         end
 
         private def type_tab_separated_text(text, append:)
@@ -478,7 +478,7 @@ module Capybara
 
           tail.each do |part|
             keyboard.press('Tab')
-            keyboard.type(part) unless part.empty?
+            type_text(keyboard, part.gsub(/\r\n?/, "\n"))
           end
         end
       end

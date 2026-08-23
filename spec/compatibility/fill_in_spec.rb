@@ -64,6 +64,62 @@ FILL_IN_KEYUP_TEXTAREA_HTML = <<~HTML
   </html>
 HTML
 
+FILL_IN_TOKEN_INPUT_HTML = <<~HTML
+  <!DOCTYPE html>
+  <html>
+  <body>
+    <label for="tags">Tags</label>
+    <input id="tags" name="tags">
+    <ul id="selected-tags"></ul>
+    <script>
+      const tags = document.getElementById('tags');
+      tags.addEventListener('input', function() {
+        const parts = this.value.split(',');
+        if (parts.length === 1) return;
+
+        parts.slice(0, -1).map(function(part) {
+          return part.trim();
+        }).filter(Boolean).forEach(function(tag) {
+          const item = document.createElement('li');
+          item.textContent = tag;
+          document.getElementById('selected-tags').appendChild(item);
+        });
+
+        this.value = parts.at(-1).trimStart();
+        this.blur();
+        this.focus();
+        this.setSelectionRange(0, 0);
+      });
+    </script>
+  </body>
+  </html>
+HTML
+
+FILL_IN_ONE_TIME_CODE_HTML = <<~HTML
+  <!DOCTYPE html>
+  <html>
+  <body>
+    <label for="digit-1">Verification code</label>
+    <div id="verification-code">
+      <input id="digit-1" maxlength="1" inputmode="numeric">
+      <input id="digit-2" maxlength="1" inputmode="numeric">
+      <input id="digit-3" maxlength="1" inputmode="numeric">
+      <input id="digit-4" maxlength="1" inputmode="numeric">
+      <input id="digit-5" maxlength="1" inputmode="numeric">
+      <input id="digit-6" maxlength="1" inputmode="numeric">
+    </div>
+    <script>
+      const digits = Array.from(document.querySelectorAll('#verification-code input'));
+      digits.forEach(function(input, index) {
+        input.addEventListener('input', function() {
+          if (this.value && digits[index + 1]) digits[index + 1].focus();
+        });
+      });
+    </script>
+  </body>
+  </html>
+HTML
+
 FILL_IN_EMOJI_TEXT = "a\u{1F600}cd\u{1F634} \u{1F6CC}\u{1F3FD}\u{1F1F5}\u{1F1F9} " \
                      "e\u{1F93E}\u{1F3FD}\u200D\u2640\uFE0Ff"
 
@@ -95,6 +151,8 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
   before do
     sinatra.get('/') { FILL_IN_FORM_HTML }
     sinatra.get('/keyup') { FILL_IN_KEYUP_TEXTAREA_HTML }
+    sinatra.get('/token-input') { FILL_IN_TOKEN_INPUT_HTML }
+    sinatra.get('/one-time-code') { FILL_IN_ONE_TIME_CODE_HTML }
   end
 
   it 'triggers keyup events' do
@@ -104,6 +162,24 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
 
     expect(find(:fillable_field, 'Body').value).to eq('updated FAQ')
     expect(find(:css, '#preview')).to have_text('updated FAQ')
+  end
+
+  it 'enters comma-separated tags in a token input' do
+    visit '/token-input'
+    fill_in 'Tags', with: 'tag1, tag2, tag3,'
+
+    expect(page).to have_css('#selected-tags li', count: 3)
+    expect(all('#selected-tags li').map(&:text)).to eq %w[tag1 tag2 tag3]
+    expect(find(:fillable_field, 'Tags').value).to eq('')
+  end
+
+  it 'enters a one-time code in auto-advancing inputs' do
+    visit '/one-time-code'
+    fill_in 'Verification code', with: '123456'
+
+    digits = all('#verification-code input').map(&:value)
+    expect(digits).to eq %w[1 2 3 4 5 6]
+    expect(page.active_element[:id]).to eq('digit-6')
   end
 
   it 'replaces an existing value' do
