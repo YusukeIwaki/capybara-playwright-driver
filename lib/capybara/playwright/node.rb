@@ -462,6 +462,8 @@ module Capybara
         end
 
         private def type_text(keyboard, text)
+          return if text.empty?
+
           head, *tail = text.split("\n", -1)
           keyboard.type(head) unless head.empty?
 
