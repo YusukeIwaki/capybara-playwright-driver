@@ -72,7 +72,7 @@ RSpec.describe 'Example' do
     search_field.fill_in(with: 'Capybara')
     search_field.send_keys(:enter)
 
-    all('[data-testid="results-list"] h3').each do |li|
+    all('[data-testid="results-list"] h3', allow_reload: true).each do |li|
       puts "#{li.all('a').first.text} by Capybara"
     end
   end
@@ -87,7 +87,7 @@ RSpec.describe 'Example' do
       page.get_by_label('Search or jump to', exact: true).press('Enter')
     end
 
-    all('[data-testid="results-list"] h3').each do |li|
+    all('[data-testid="results-list"] h3', allow_reload: true).each do |li|
       puts "#{li.with_playwright_element_handle { |handle| handle.text_content }} by Playwright"
     end
   end
