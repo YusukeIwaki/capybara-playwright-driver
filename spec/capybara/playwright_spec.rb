@@ -16,6 +16,8 @@ Capybara::SpecHelper.run_specs TestSessions::Playwright, 'Playwright' do |exampl
   end
 
   case example.metadata[:full_description]
+  when /should fill in a textarea in a reasonable time by default/
+    pending 'fill_in intentionally sends per-character keyboard events'
   when /should offset outside (the|from center of) element/
     pending 'Playwright does not allow to click outside the element'
   when /should not retry clicking when wait is disabled/

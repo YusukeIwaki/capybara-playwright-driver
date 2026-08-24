@@ -368,7 +368,9 @@ module Capybara
             end
           end
 
-        settable_class.new(@element, capybara_default_wait_time, @internal_logger).set(value, **options)
+        assert_element_not_stale do
+          settable_class.new(@element, capybara_default_wait_time, @internal_logger).set(value, **options)
+        end
       rescue ::Playwright::TimeoutError => err
         raise NotActionableError.new(err)
       end
@@ -406,6 +408,7 @@ module Capybara
             existing_text.length.times { @element.press('Backspace', timeout: @timeout) }
           when :none
             @element.press('End', timeout: @timeout)
+            ensure_attached
           when Array
             @internal_logger.warn "options { clear: #{options[:clear]} } is ignored"
           end
@@ -417,69 +420,90 @@ module Capybara
             text = text[0...-1]
           end
 
-          set_text(text, append: options[:clear] == :none)
+          keyboard = @element.owner_frame.page.keyboard
+          set_text(text, append: options[:clear] == :none, keyboard: keyboard)
 
-          if press_enter
-            @element.press('Enter', timeout: @timeout)
-          end
+          keyboard.press('Enter') if press_enter
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
 
           @internal_logger.info("Node#set: element is not editable. #{@element}")
         end
 
-        private def set_text(text, append:)
+        private def set_text(text, append:, keyboard:)
           # ElementHandle#type can refocus inherited contenteditable descendants and drop the input.
           if @element.evaluate('el => el.isContentEditable') && !append
             @element.fill(text, timeout: @timeout)
             return
           end
 
+          text = text.gsub(/\r\n?/, "\n")
+
           if text.include?("\t")
-            type_tab_separated_text(text, append: append)
+            type_tab_separated_text(text, append: append, keyboard: keyboard)
             return
           end
-
-          if number_input? && !append
-            replace_number_text(text)
-            return
-          end
-
-          grapheme_clusters = text.scan(/\X/)
-          fill_text = grapheme_clusters[0...-1].join
-          typed_text = grapheme_clusters[-1].to_s
 
           if append
-            @element.type(fill_text, timeout: @timeout) unless fill_text.empty?
-          else
-            @element.fill(fill_text, timeout: @timeout)
-          end
-          @element.type(typed_text, timeout: @timeout) unless typed_text.empty?
-        end
-
-        private def number_input?
-          @element.evaluate('el => el.type === "number"')
-        end
-
-        private def replace_number_text(text)
-          if text.empty?
+            type_text(keyboard, text)
+          elsif text.empty?
             @element.fill('', timeout: @timeout)
-            return
+          else
+            @element.select_text(timeout: @timeout)
+            replace_text(keyboard, text)
           end
-
-          @element.select_text(timeout: @timeout)
-          @element.type(text, timeout: @timeout)
         end
 
-        private def type_tab_separated_text(text, append:)
-          head, *tail = text.split("\t", -1)
-          set_text(head, append: append)
-          keyboard = @element.owner_frame.page.keyboard
+        private def replace_text(keyboard, text)
+          head, *tail = text.split("\n", -1)
+          if head.empty?
+            @element.press('Enter', timeout: @timeout)
+            head = tail.shift
+            keyboard.type(head) unless head.empty?
+          else
+            first_character = head[/\A\X/]
+            @element.type(first_character, timeout: @timeout)
+            ensure_attached
+            remaining_text = head[first_character.length..-1]
+            keyboard.type(remaining_text) unless remaining_text.empty?
+          end
 
-          tail.each do |part|
-            keyboard.press('Tab')
+          type_lines(keyboard, tail)
+        end
+
+        private def type_text(keyboard, text)
+          return if text.empty?
+
+          head, *tail = text.split("\n", -1)
+          keyboard.type(head) unless head.empty?
+
+          type_lines(keyboard, tail)
+        end
+
+        private def type_lines(keyboard, parts)
+          parts.each do |part|
+            keyboard.press('Enter')
             keyboard.type(part) unless part.empty?
           end
+        end
+
+        private def type_tab_separated_text(text, append:, keyboard:)
+          head, *tail = text.split("\t", -1)
+          set_text(head, append: append, keyboard: keyboard)
+
+          tail.each_with_index do |part, index|
+            if index.zero? && !append && head.empty?
+              @element.press('Tab', timeout: @timeout)
+            else
+              keyboard.press('Tab')
+            end
+            type_text(keyboard, part.gsub(/\r\n?/, "\n"))
+          end
+        end
+
+        private def ensure_attached
+          # Trigger Playwright's stale-element check without changing focus.
+          @element.enabled?
         end
       end
 
