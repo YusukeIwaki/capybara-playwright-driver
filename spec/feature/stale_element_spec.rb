@@ -49,4 +49,28 @@ RSpec.describe 'stale element handling' do
       expect(el.inspect).to eq('Obsolete #<Capybara::Node::Element>')
     end
   end
+
+  it 'retries filling when the selected input is replaced before typing' do
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <label for="field">Field</label>
+        <input id="field">
+        <script>
+          const field = document.getElementById('field');
+          field.addEventListener('focus', function() {
+            if (window.replacementScheduled) return;
+
+            window.replacementScheduled = true;
+            queueMicrotask(function() {
+              field.replaceWith(field.cloneNode(true));
+            });
+          });
+        </script>
+      HTML
+    end
+
+    fill_in 'Field', with: 'abc'
+
+    expect(find('#field').value).to eq('abc')
+  end
 end

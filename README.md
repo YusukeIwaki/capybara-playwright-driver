@@ -56,6 +56,9 @@ editor.send_keys(:end, '@') # The page moves focus to an autocomplete control.
 editor.send_keys(:end, 'alice')
 ```
 
+For text inputs and textareas, `fill_in` sends keyboard events for every character regardless of the value length. This
+preserves reactive input behavior, but filling very large values is slower than Playwright's event-free `fill` action.
+
 ## Development
 
 Prepare to run tests:

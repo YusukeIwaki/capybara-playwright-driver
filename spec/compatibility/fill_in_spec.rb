@@ -115,6 +115,10 @@ FILL_IN_ONE_TIME_CODE_HTML = <<~HTML
           if (this.value && digits[index + 1]) digits[index + 1].focus();
         });
       });
+
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') window.enterTarget = event.target.id;
+      });
     </script>
   </body>
   </html>
@@ -180,6 +184,15 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     digits = all('#verification-code input').map(&:value)
     expect(digits).to eq %w[1 2 3 4 5 6]
     expect(page.active_element[:id]).to eq('digit-6')
+  end
+
+  it 'sends a trailing Enter to the current auto-advanced input' do
+    visit '/one-time-code'
+    fill_in 'Verification code', with: "123456\n"
+
+    digits = all('#verification-code input').map(&:value)
+    expect(digits).to eq %w[1 2 3 4 5 6]
+    expect(evaluate_script('window.enterTarget')).to eq('digit-6')
   end
 
   it 'replaces an existing value' do
