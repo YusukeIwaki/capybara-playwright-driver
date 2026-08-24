@@ -63,6 +63,43 @@ RSpec.describe 'stale element handling' do
     JAVASCRIPT
   end
 
+  def drag_elements_replaced_during_action
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <style>
+          #source, #target { position: absolute; width: 50px; height: 50px; }
+          #source { left: 0; top: 0; }
+          #target { left: 200px; top: 0; }
+        </style>
+        <div id="source"></div>
+        <div id="target"></div>
+        <script>
+          window.mouseupCount = 0;
+          window.targetReplaced = false;
+          document.addEventListener('mousedown', function(event) {
+            if (event.target.id !== 'source' || window.targetReplaced) return;
+
+            window.targetReplaced = true;
+            const target = document.getElementById('target');
+            target.replaceWith(target.cloneNode(true));
+          });
+          document.addEventListener('mouseup', function(event) {
+            window.mouseupCount += 1;
+            document.body.dataset.mouseupTarget = event.target.id;
+          });
+        </script>
+      HTML
+    end
+    source = find('#source')
+    target = find('#target')
+    page.execute_script(<<~JAVASCRIPT)
+      const source = document.getElementById('source');
+      source.replaceWith(source.cloneNode(true));
+    JAVASCRIPT
+
+    [source, target]
+  end
+
   describe 'Element#inspect' do
     it 'works when the element is replaced between find and inspect' do
       el = find('#myid')
@@ -79,20 +116,34 @@ RSpec.describe 'stale element handling' do
     end
   end
 
-  {
-    click: 'click',
-    right_click: 'contextmenu',
-    double_click: 'dblclick',
-  }.each do |action, event_name|
-    it "retries #{action} and waits for the replacement to become actionable" do
-      install_button(event_name)
-      element = find('#myid')
+  it 'retries clicking and waits for the replacement to become actionable' do
+    install_button('click')
+    element = find('#myid')
 
-      replace_with_temporarily_disabled_button
-      element.public_send(action)
+    replace_with_temporarily_disabled_button
+    element.click
 
-      expect(page.evaluate_script('window.actionCount')).to eq(1)
-    end
+    expect(page.evaluate_script('window.actionCount')).to eq(1)
+  end
+
+  it 'retries right-clicking and waits for the replacement to become actionable' do
+    install_button('contextmenu')
+    element = find('#myid')
+
+    replace_with_temporarily_disabled_button
+    element.right_click
+
+    expect(page.evaluate_script('window.actionCount')).to eq(1)
+  end
+
+  it 'retries double-clicking and waits for the replacement to become actionable' do
+    install_button('dblclick')
+    element = find('#myid')
+
+    replace_with_temporarily_disabled_button
+    element.double_click
+
+    expect(page.evaluate_script('window.actionCount')).to eq(1)
   end
 
   it 'retries a centered offset click when the element is replaced during position calculation' do
@@ -140,43 +191,17 @@ RSpec.describe 'stale element handling' do
     expect(element.obscured?).to be false
   end
 
-  it 'reloads both drag endpoints and releases the mouse before retrying' do
-    page.driver.with_playwright_page do |page|
-      page.content = <<~HTML
-        <style>
-          #source, #target { position: absolute; width: 50px; height: 50px; }
-          #source { left: 0; top: 0; }
-          #target { left: 200px; top: 0; }
-        </style>
-        <div id="source"></div>
-        <div id="target"></div>
-        <script>
-          window.mouseupCount = 0;
-          window.targetReplaced = false;
-          document.addEventListener('mousedown', function(event) {
-            if (event.target.id !== 'source' || window.targetReplaced) return;
-
-            window.targetReplaced = true;
-            const target = document.getElementById('target');
-            target.replaceWith(target.cloneNode(true));
-          });
-          document.addEventListener('mouseup', function(event) {
-            window.mouseupCount += 1;
-            document.body.dataset.mouseupTarget = event.target.id;
-          });
-        </script>
-      HTML
-    end
-    source = find('#source')
-    target = find('#target')
-
-    page.execute_script(<<~JAVASCRIPT)
-      const source = document.getElementById('source');
-      source.replaceWith(source.cloneNode(true));
-    JAVASCRIPT
+  it 'reloads both drag endpoints when they are replaced' do
+    source, target = drag_elements_replaced_during_action
     source.drag_to(target)
 
     expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
+  end
+
+  it 'releases the mouse before retrying a stale drag target' do
+    source, target = drag_elements_replaced_during_action
+    source.drag_to(target)
+
     expect(page.evaluate_script('window.mouseupCount')).to eq(2)
   end
 

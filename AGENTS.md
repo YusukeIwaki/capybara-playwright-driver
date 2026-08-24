@@ -106,6 +106,11 @@ end
 - Prefer concise Ruby that reads top-to-bottom without carrying unnecessary temporary state.
 - Prefer small private helper objects only when they reduce complexity. Once extracted, give them Ruby-like method names and keep their public surface minimal.
 
+## Test Style
+- Avoid assertion roulette. Each example must verify one clearly named behavior so a failure identifies the broken behavior directly.
+- Do not use loops, parameter tables, or metaprogramming to generate examples for distinct public operations. Write an explicit `it` block for each operation, even when their setup and expectations are similar.
+- Split independent expectations into separate examples. Keep multiple expectations together only when they jointly describe one inseparable outcome.
+
 ## How to execute RSpec or Ruby
 
 `ruby` uses macOS system ruby interpreter (typically 2.6 or older). rbenv should be used.
