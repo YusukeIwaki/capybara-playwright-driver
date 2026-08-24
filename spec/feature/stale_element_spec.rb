@@ -73,4 +73,56 @@ RSpec.describe 'stale element handling' do
 
     expect(find('#field').value).to eq('abc')
   end
+
+  it 'retries appending when the input is replaced after focusing' do
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <label for="field">Field</label>
+        <input id="field" value="seed">
+        <script>
+          const field = document.getElementById('field');
+          field.addEventListener('focus', function() {
+            if (window.replacementScheduled) return;
+
+            window.replacementScheduled = true;
+            queueMicrotask(function() {
+              const replacement = field.cloneNode(true);
+              replacement.value = field.value;
+              field.replaceWith(replacement);
+            });
+          });
+        </script>
+      HTML
+    end
+
+    fill_in 'Field', with: 'abc', fill_options: { clear: :none }
+
+    expect(find('#field').value).to eq('seedabc')
+  end
+
+  it 'retries filling when the input is replaced after the first character' do
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <label for="field">Field</label>
+        <input id="field">
+        <script>
+          const field = document.getElementById('field');
+          field.addEventListener('input', function() {
+            if (window.replacementScheduled) return;
+
+            window.replacementScheduled = true;
+            queueMicrotask(function() {
+              const replacement = field.cloneNode(true);
+              replacement.value = field.value;
+              field.replaceWith(replacement);
+            });
+          });
+        </script>
+      HTML
+    end
+
+    fill_in 'Field', with: 'abc'
+
+    expect(find('#field').value).to eq('abc')
+  end
 end

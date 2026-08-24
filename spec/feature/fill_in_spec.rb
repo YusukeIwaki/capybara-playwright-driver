@@ -7,9 +7,12 @@ FILL_IN_LONG_TEXT_HTML = <<~HTML
   <html>
   <body>
     <label for="body">Body</label>
-    <textarea id="body" name="body" data-keyup-count="0"></textarea>
+    <textarea id="body" name="body" data-input-count="0" data-keyup-count="0"></textarea>
     <script>
       const body = document.getElementById('body');
+      body.addEventListener('input', function() {
+        body.dataset.inputCount = String(Number(body.dataset.inputCount) + 1);
+      });
       body.addEventListener('keyup', function() {
         body.dataset.keyupCount = String(Number(body.dataset.keyupCount) + 1);
       });
@@ -30,5 +33,17 @@ RSpec.describe '#fill_in', sinatra: true do
     textarea = find(:fillable_field, 'Body')
     expect(textarea.value).to eq(long_text)
     expect(textarea['data-keyup-count']).to eq(long_text.length.to_s)
+  end
+
+  it 'uses input events without keyup for non-US keyboard characters' do
+    visit '/long-text'
+    text = '更新済み'
+
+    fill_in 'Body', with: text
+
+    textarea = find(:fillable_field, 'Body')
+    expect(textarea.value).to eq(text)
+    expect(textarea['data-input-count']).to eq(text.length.to_s)
+    expect(textarea['data-keyup-count']).to eq('0')
   end
 end

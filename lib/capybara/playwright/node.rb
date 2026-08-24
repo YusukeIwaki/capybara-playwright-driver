@@ -408,6 +408,7 @@ module Capybara
             existing_text.length.times { @element.press('Backspace', timeout: @timeout) }
           when :none
             @element.press('End', timeout: @timeout)
+            ensure_attached
           when Array
             @internal_logger.warn "options { clear: #{options[:clear]} } is ignored"
           end
@@ -462,6 +463,7 @@ module Capybara
           else
             first_character = head[/\A\X/]
             @element.type(first_character, timeout: @timeout)
+            ensure_attached
             remaining_text = head[first_character.length..-1]
             keyboard.type(remaining_text) unless remaining_text.empty?
           end
@@ -497,6 +499,11 @@ module Capybara
             end
             type_text(keyboard, part.gsub(/\r\n?/, "\n"))
           end
+        end
+
+        private def ensure_attached
+          # Trigger Playwright's stale-element check without changing focus.
+          @element.enabled?
         end
       end
 
