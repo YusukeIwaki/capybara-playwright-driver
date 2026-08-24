@@ -58,6 +58,11 @@ editor.send_keys(:end, 'alice')
 
 For text inputs and textareas, `fill_in` sends keyboard events for every character regardless of the value length. This
 preserves reactive input behavior, but filling very large values is slower than Playwright's event-free `fill` action.
+When input speed matters more than per-character keyboard events, consider using Playwright's native `fill` directly:
+
+```ruby
+page.driver.with_playwright_page { |playwright_page| playwright_page.get_by_label('Body').fill(large_value) }
+```
 
 ## Development
 
