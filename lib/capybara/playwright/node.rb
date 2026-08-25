@@ -956,7 +956,7 @@ module Capybara
         def execute
           input_started = false
           mouse_down = false
-          @target.scroll_into_view_if_needed(timeout: @timeout)
+          @target.wait_for_element_state('visible', timeout: @timeout)
           @source.scroll_into_view_if_needed(timeout: @timeout)
 
           position_from = center_of(@source)

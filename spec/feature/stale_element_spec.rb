@@ -320,6 +320,38 @@ RSpec.describe 'stale element handling' do
     expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
   end
 
+  it 'drags to an off-screen target when scrolling unmounts the source' do
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <style>
+          body { margin: 0; min-height: 2100px; }
+          #source, #target { position: absolute; width: 50px; height: 50px; }
+          #source { left: 0; top: 0; }
+          #target { left: 0; top: 2000px; }
+        </style>
+        <div id="source"></div>
+        <div id="target"></div>
+        <script>
+          window.addEventListener('scroll', function() {
+            if (window.scrollY <= 100) return;
+
+            const source = document.getElementById('source');
+            if (source) source.remove();
+          });
+          document.addEventListener('mouseup', function(event) {
+            document.body.dataset.mouseupTarget = event.target.id;
+          });
+        </script>
+      HTML
+    end
+    source = find('#source')
+    target = find('#target')
+
+    source.drag_to(target)
+
+    expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
+  end
+
   it 'does not treat an attached drag target without a bounding box as stale' do
     source, target = drag_with_attached_hidden_target
 
