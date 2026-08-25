@@ -1,11 +1,13 @@
 module Capybara
   module ElementClickOptionPatch
     def perform_click_action(keys, **options)
+      return super unless driver.is_a?(Capybara::Playwright::Driver)
+
+      wait = options[:wait]
+
       # Expose `wait` value to the block given to perform_click_action.
-      if options[:wait].is_a?(Numeric)
-        options[:_playwright_wait] = options[:wait]
-      end
-      options[:wait] = 0 if options[:wait] == false
+      options[:_playwright_wait] = wait if wait.is_a?(Numeric)
+      options[:wait] = 0 if wait == false
 
       # Playwright waits for actionability while Capybara retries replaced elements.
       super
