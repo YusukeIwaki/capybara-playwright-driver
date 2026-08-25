@@ -236,7 +236,7 @@ RSpec.describe 'stale element handling' do
   it 'does not treat an attached click target without a bounding box as stale' do
     element = attached_hidden_click_element
 
-    expect { element.click(x: 0, y: 0, wait: 0.5) }
+    expect { element.click(x: 0, y: 0, offset: :center, wait: 0.5) }
       .to raise_error(Capybara::Playwright::Node::MissingBoundingBoxError)
   end
 
