@@ -292,11 +292,41 @@ RSpec.describe 'stale element handling' do
     expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
   end
 
+  it 'waits for a temporarily hidden drag target to become actionable' do
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <style>
+          #source, #target { position: absolute; width: 50px; height: 50px; }
+          #source { left: 0; top: 0; }
+          #target { display: none; left: 200px; top: 0; }
+        </style>
+        <div id="source"></div>
+        <div id="target"></div>
+        <script>
+          document.addEventListener('mouseup', function(event) {
+            document.body.dataset.mouseupTarget = event.target.id;
+          });
+          setTimeout(function() {
+            document.getElementById('target').style.display = 'block';
+          }, 100);
+        </script>
+      HTML
+    end
+    source = find('#source')
+    target = find('#target', visible: :all)
+
+    source.drag_to(target)
+
+    expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
+  end
+
   it 'does not treat an attached drag target without a bounding box as stale' do
     source, target = drag_with_attached_hidden_target
 
-    expect { source.drag_to(target) }
-      .to raise_error(Capybara::Playwright::Node::MissingBoundingBoxError)
+    Capybara.using_wait_time(0.1) do
+      expect { source.drag_to(target) }
+        .to raise_error(Playwright::TimeoutError)
+    end
   end
 
   it 'raises a non-retryable error when a drag target becomes stale after mouse down' do
