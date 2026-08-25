@@ -63,7 +63,7 @@ RSpec.describe 'stale element handling' do
     JAVASCRIPT
   end
 
-  def drag_elements_replaced_during_action
+  def drag_elements_replaced_before_action
     page.driver.with_playwright_page do |page|
       page.content = <<~HTML
         <style>
@@ -74,10 +74,43 @@ RSpec.describe 'stale element handling' do
         <div id="source"></div>
         <div id="target"></div>
         <script>
+          document.addEventListener('mouseup', function(event) {
+            document.body.dataset.mouseupTarget = event.target.id;
+          });
+        </script>
+      HTML
+    end
+    source = find('#source')
+    target = find('#target')
+    page.execute_script(<<~JAVASCRIPT)
+      const source = document.getElementById('source');
+      const target = document.getElementById('target');
+      source.replaceWith(source.cloneNode(true));
+      target.replaceWith(target.cloneNode(true));
+    JAVASCRIPT
+
+    [source, target]
+  end
+
+  def drag_elements_replaced_after_mouse_down
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <style>
+          #source, #target { position: absolute; width: 50px; height: 50px; }
+          #source { left: 0; top: 0; }
+          #target { left: 200px; top: 0; }
+        </style>
+        <div id="source"></div>
+        <div id="target"></div>
+        <script>
+          window.mousedownCount = 0;
           window.mouseupCount = 0;
           window.targetReplaced = false;
           document.addEventListener('mousedown', function(event) {
-            if (event.target.id !== 'source' || window.targetReplaced) return;
+            if (event.target.id !== 'source') return;
+
+            window.mousedownCount += 1;
+            if (window.targetReplaced) return;
 
             window.targetReplaced = true;
             const target = document.getElementById('target');
@@ -92,9 +125,53 @@ RSpec.describe 'stale element handling' do
     end
     source = find('#source')
     target = find('#target')
+
+    [source, target]
+  end
+
+  def perform_interrupted_drag(source, target)
+    source.drag_to(target)
+  rescue Capybara::Playwright::Node::DragInterruptedError
+  end
+
+  def attached_hidden_click_element
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <button class="item" id="original" style="display: none">Original</button>
+      HTML
+    end
+    element = find('.item', visible: :all)
     page.execute_script(<<~JAVASCRIPT)
-      const source = document.getElementById('source');
-      source.replaceWith(source.cloneNode(true));
+      const other = document.createElement('button');
+      other.className = 'item';
+      other.id = 'other';
+      other.textContent = 'Other';
+      document.getElementById('original').before(other);
+    JAVASCRIPT
+
+    element
+  end
+
+  def drag_with_attached_hidden_target
+    page.driver.with_playwright_page do |page|
+      page.content = <<~HTML
+        <style>
+          #source, .target { position: absolute; width: 50px; height: 50px; }
+          #source { left: 0; top: 0; }
+          #original { display: none; }
+          #other { left: 200px; top: 0; }
+        </style>
+        <div id="source"></div>
+        <div class="target" id="original"></div>
+      HTML
+    end
+    source = find('#source')
+    target = find('.target', visible: :all)
+    page.execute_script(<<~JAVASCRIPT)
+      const other = document.createElement('div');
+      other.className = 'target';
+      other.id = 'other';
+      document.getElementById('original').before(other);
     JAVASCRIPT
 
     [source, target]
@@ -156,6 +233,23 @@ RSpec.describe 'stale element handling' do
     expect(page.evaluate_script('window.actionCount')).to eq(1)
   end
 
+  it 'does not treat an attached click target without a bounding box as stale' do
+    element = attached_hidden_click_element
+
+    expect { element.click(x: 0, y: 0, wait: 0.5) }
+      .to raise_error(Capybara::Playwright::Node::MissingBoundingBoxError)
+  end
+
+  it 'preserves the stale element error when click retries are disabled' do
+    install_button('click')
+    element = find('#myid')
+
+    rerender_element
+
+    expect { element.click(wait: false) }
+      .to raise_error(Capybara::Playwright::Node::StaleReferenceError)
+  end
+
   it 'retries hovering and preserves Playwright actionability waiting' do
     page.driver.with_playwright_page do |page|
       page.content = <<~HTML
@@ -192,17 +286,38 @@ RSpec.describe 'stale element handling' do
   end
 
   it 'reloads both drag endpoints when they are replaced' do
-    source, target = drag_elements_replaced_during_action
+    source, target = drag_elements_replaced_before_action
     source.drag_to(target)
 
     expect(page.evaluate_script('document.body.dataset.mouseupTarget')).to eq('target')
   end
 
-  it 'releases the mouse before retrying a stale drag target' do
-    source, target = drag_elements_replaced_during_action
-    source.drag_to(target)
+  it 'does not treat an attached drag target without a bounding box as stale' do
+    source, target = drag_with_attached_hidden_target
 
-    expect(page.evaluate_script('window.mouseupCount')).to eq(2)
+    expect { source.drag_to(target) }
+      .to raise_error(Capybara::Playwright::Node::MissingBoundingBoxError)
+  end
+
+  it 'raises a non-retryable error when a drag target becomes stale after mouse down' do
+    source, target = drag_elements_replaced_after_mouse_down
+
+    expect { source.drag_to(target) }
+      .to raise_error(Capybara::Playwright::Node::DragInterruptedError)
+  end
+
+  it 'does not repeat mouse down when a drag target becomes stale after input begins' do
+    source, target = drag_elements_replaced_after_mouse_down
+
+    expect { perform_interrupted_drag(source, target) }
+      .to change { page.evaluate_script('window.mousedownCount') }.by(1)
+  end
+
+  it 'releases the mouse once when a drag target becomes stale after input begins' do
+    source, target = drag_elements_replaced_after_mouse_down
+
+    expect { perform_interrupted_drag(source, target) }
+      .to change { page.evaluate_script('window.mouseupCount') }.by(1)
   end
 
   it 'retries filling when the selected input is replaced before typing' do

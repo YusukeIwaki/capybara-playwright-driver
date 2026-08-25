@@ -5,6 +5,7 @@ module Capybara
       if options[:wait].is_a?(Numeric)
         options[:_playwright_wait] = options[:wait]
       end
+      options[:wait] = 0 if options[:wait] == false
 
       # Playwright waits for actionability while Capybara retries replaced elements.
       super
@@ -276,6 +277,21 @@ module Capybara
 
       class NotActionableError < StandardError ; end
       class StaleReferenceError < StandardError ; end
+      class MissingBoundingBoxError < StandardError ; end
+      class DragInterruptedError < StandardError ; end
+
+      class ElementGeometry
+        def self.bounding_box(element)
+          box = element.bounding_box
+          return box if box
+
+          unless element.evaluate('element => element.isConnected')
+            raise StaleReferenceError, 'Element is not attached to the DOM'
+          end
+
+          raise MissingBoundingBoxError, 'Element is attached but has no bounding box'
+        end
+      end
 
       def all_text
         assert_element_not_stale {
@@ -715,8 +731,7 @@ module Capybara
 
         private def position
           if @offset_center
-            box = @element.bounding_box
-            raise StaleReferenceError, 'Element has no bounding box' unless box
+            box = ElementGeometry.bounding_box(@element)
 
             {
               x: @coords[:x] + box['width'] / 2,
@@ -939,14 +954,16 @@ module Capybara
         end
 
         def execute
+          input_started = false
           mouse_down = false
           @source.scroll_into_view_if_needed(timeout: @timeout)
 
-          # down
           position_from = center_of(@source)
+          center_of(@target)
           @page.mouse.move(*position_from)
-          @page.mouse.down
+          input_started = true
           mouse_down = true
+          @page.mouse.down
 
           @target.scroll_into_view_if_needed(timeout: @timeout)
 
@@ -960,14 +977,17 @@ module Capybara
             mouse_down = false
           end
           sleep_delay
+        rescue StaleReferenceError, ::Playwright::Error => err
+          raise DragInterruptedError, "Drag was interrupted after input began: #{err.message}" if input_started
+
+          raise
         ensure
           @page.mouse.up if mouse_down
         end
 
         # @param element [Playwright::ElementHandle]
         private def center_of(element)
-          box = element.bounding_box
-          raise StaleReferenceError, 'Element has no bounding box' unless box
+          box = ElementGeometry.bounding_box(element)
 
           [box["x"] + box["width"] / 2, box["y"] + box["height"] / 2]
         end
