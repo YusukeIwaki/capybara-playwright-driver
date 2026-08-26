@@ -46,7 +46,7 @@ RSpec.configure do |config|
       Host: '127.0.0.1',
       Port: 4567)
 
-    test_server.start_async
+    test_server_thread = test_server.start_async
     test_server.wait_for_ready
     Capybara.app_host = 'http://localhost:4567'
 
@@ -55,8 +55,8 @@ RSpec.configure do |config|
     example.run
     Capybara.default_max_wait_time = previous_wait_time
 
-    test_server.stop_async
-    test_server.wait_for_stopped
+    test_server.stop_async.join
+    test_server_thread.join
   end
 
   test_with_sinatra = Module.new do

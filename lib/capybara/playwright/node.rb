@@ -1,21 +1,37 @@
 module Capybara
   module ElementClickOptionPatch
     def perform_click_action(keys, **options)
+      return super unless driver.is_a?(Capybara::Playwright::Driver)
+
+      wait = options[:wait]
+
       # Expose `wait` value to the block given to perform_click_action.
-      if options[:wait].is_a?(Numeric)
-        options[:_playwright_wait] = options[:wait]
-      end
+      options[:_playwright_wait] = wait if wait.is_a?(Numeric)
+      options[:wait] = 0 if wait == false
 
-      # Playwright has own auto-waiting feature.
-      # So disable Capybara's retry logic.
-      if driver.is_a?(Capybara::Playwright::Driver)
-        options[:wait] = 0
-      end
-
+      # Playwright waits for actionability while Capybara retries replaced elements.
       super
     end
   end
   Node::Element.prepend(ElementClickOptionPatch)
+
+  module ElementDragToPatch
+    def drag_to(target, **options)
+      return super unless driver.is_a?(Capybara::Playwright::Driver)
+
+      synchronize do
+        begin
+          base.drag_to(target.base, **options)
+        rescue Capybara::Playwright::Node::StaleReferenceError
+          # Capybara's synchronize reloads only the source element.
+          target.reload if session_options.automatic_reload
+          raise
+        end
+      end
+      self
+    end
+  end
+  Node::Element.prepend(ElementDragToPatch)
 
   module WithElementHandlePatch
     def with_playwright_element_handle(&block)
@@ -263,6 +279,21 @@ module Capybara
 
       class NotActionableError < StandardError ; end
       class StaleReferenceError < StandardError ; end
+      class MissingBoundingBoxError < StandardError ; end
+      class DragInterruptedError < StandardError ; end
+
+      class ElementGeometry
+        def self.bounding_box(element)
+          box = element.bounding_box
+          return box if box
+
+          unless element.evaluate('element => element.isConnected')
+            raise StaleReferenceError, 'Element is not attached to the DOM'
+          end
+
+          raise MissingBoundingBoxError, 'Element is attached but has no bounding box'
+        end
+      end
 
       def all_text
         assert_element_not_stale {
@@ -613,20 +644,26 @@ module Capybara
       end
 
       def click(keys = [], **options)
-        click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
-        @element.click(**click_options.as_params)
+        assert_element_not_stale do
+          click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
+          @element.click(**click_options.as_params)
+        end
       end
 
       def right_click(keys = [], **options)
-        click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
-        params = click_options.as_params
-        params[:button] = 'right'
-        @element.click(**params)
+        assert_element_not_stale do
+          click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
+          params = click_options.as_params
+          params[:button] = 'right'
+          @element.click(**params)
+        end
       end
 
       def double_click(keys = [], **options)
-        click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
-        @element.dblclick(**click_options.as_params)
+        assert_element_not_stale do
+          click_options = ClickOptions.new(@element, keys, options, capybara_default_wait_time)
+          @element.dblclick(**click_options.as_params)
+        end
       end
 
       class ClickOptions
@@ -696,7 +733,7 @@ module Capybara
 
         private def position
           if @offset_center
-            box = @element.bounding_box
+            box = ElementGeometry.bounding_box(@element)
 
             {
               x: @coords[:x] + box['width'] / 2,
@@ -883,11 +920,17 @@ module Capybara
       end
 
       def hover
-        @element.hover(timeout: capybara_default_wait_time)
+        assert_element_not_stale do
+          @element.hover(timeout: capybara_default_wait_time)
+        end
       end
 
-      def drag_to(element, **options)
-        DragTo.new(@page, @element, element.element, options).execute
+      def drag_to(target, **options)
+        assert_element_not_stale do
+          target.send(:assert_element_not_stale) do
+            DragTo.new(@page, @element, target.element, options, capybara_default_wait_time).execute
+          end
+        end
       end
 
       class DragTo
@@ -904,22 +947,28 @@ module Capybara
         # @param page [Playwright::Page]
         # @param source [Playwright::ElementHandle]
         # @param target [Playwright::ElementHandle]
-        def initialize(page, source, target, options)
+        def initialize(page, source, target, options, timeout)
           @page = page
           @source = source
           @target = target
           @options = options
+          @timeout = timeout
         end
 
         def execute
-          @source.scroll_into_view_if_needed
+          input_started = false
+          mouse_down = false
+          @target.wait_for_element_state('visible', timeout: @timeout)
+          @source.scroll_into_view_if_needed(timeout: @timeout)
 
-          # down
           position_from = center_of(@source)
+          center_of(@target)
           @page.mouse.move(*position_from)
+          input_started = true
+          mouse_down = true
           @page.mouse.down
 
-          @target.scroll_into_view_if_needed
+          @target.scroll_into_view_if_needed(timeout: @timeout)
 
           # move and up
           sleep_delay
@@ -928,20 +977,33 @@ module Capybara
             @page.mouse.move(*position_to, steps: 6)
             sleep_delay
             @page.mouse.up
+            mouse_down = false
           end
           sleep_delay
+        rescue StaleReferenceError, ::Playwright::Error => err
+          raise DragInterruptedError, "Drag was interrupted after input began: #{err.message}" if input_started
+
+          raise
+        ensure
+          @page.mouse.up if mouse_down
         end
 
         # @param element [Playwright::ElementHandle]
         private def center_of(element)
-          box = element.bounding_box
+          box = ElementGeometry.bounding_box(element)
+
           [box["x"] + box["width"] / 2, box["y"] + box["height"] / 2]
         end
 
-        private def with_key_pressing(keys, &block)
-          keys.each { |key| @page.keyboard.down(key) }
-          block.call
-          keys.each { |key| @page.keyboard.up(key) }
+        private def with_key_pressing(keys)
+          pressed_keys = []
+          keys.each do |key|
+            @page.keyboard.down(key)
+            pressed_keys << key
+          end
+          yield
+        ensure
+          pressed_keys.reverse_each { |key| @page.keyboard.up(key) }
         end
 
         # @returns Array<String>
@@ -1121,7 +1183,9 @@ module Capybara
       end
 
       def obscured?
-        @element.capybara_obscured?
+        assert_element_not_stale do
+          @element.capybara_obscured?
+        end
       end
 
       def checked?
