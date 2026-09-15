@@ -94,15 +94,18 @@ module Capybara
       end
 
       def refresh
-        if firefox?
-          # ref: https://github.com/microsoft/playwright/issues/39738
-          @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
-        else
-          assert_page_alive {
+        assert_page_alive {
+          if firefox?
+            # Preserve POST requests: https://github.com/microsoft/playwright/issues/39738
+            # Wait for a new load; expect_navigation can also resolve on pushState.
+            @playwright_page.expect_event('load', timeout: @default_navigation_timeout) do
+              @playwright_page.evaluate('() => { location.reload(true) }')
+            end
+          else
             response = @playwright_page.reload
             @playwright_page.capybara_set_last_response(response)
-          }
-        end
+          end
+        }
       end
 
       def find_xpath(query, **options)

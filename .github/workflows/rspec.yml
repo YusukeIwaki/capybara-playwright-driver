@@ -1,6 +1,33 @@
 name: RSpec
 on: [pull_request]
 jobs:
+  refresh_spec:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    name: (${{ matrix.browser }}) Refresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install Playwright
+        run: |
+          export PLAYWRIGHT_CLI_VERSION=$(bundle exec ruby -e 'require "playwright"; puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION.strip')
+          npm install playwright@${PLAYWRIGHT_CLI_VERSION} || npm install playwright@next
+          ./node_modules/.bin/playwright install --with-deps ${{ matrix.browser }}
+      - run: bundle exec rspec spec/feature/refresh_spec.rb
+        env:
+          BROWSER: ${{ matrix.browser }}
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 3
+
   example_spec_legacy:
     strategy:
       fail-fast: false
