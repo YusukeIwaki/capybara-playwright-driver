@@ -315,7 +315,7 @@ module Capybara
               if (el.nodeName == 'TEXTAREA'){
                 return el.textContent;
               } else if (el instanceof SVGElement) {
-                return el.textContent;
+                return el.textContent.replace(/\\n+/g, '\\n');
               } else {
                 return el.innerText;
               }

@@ -46,6 +46,15 @@ Refer the [documentation](https://playwright-ruby-client.vercel.app/docs/article
 
 ## Selenium compatibility
 
+Visible text for ordinary HTML elements follows the browser's
+[`innerText` behavior](https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute). This preserves
+meaningful blank lines, but paragraph and rich-text-editor boundaries can differ from Selenium's WebDriver text
+algorithm. When exact whitespace is not part of an assertion, use Capybara's `normalize_ws: true` option:
+
+```ruby
+expect(message).to have_text('Hello Regards', normalize_ws: true)
+```
+
 This driver delegates keyboard focus and caret behavior to Playwright rather than overriding it with JavaScript. One
 observable difference is that when a `contenteditable` element loses focus between `send_keys` calls, Playwright may
 place the caret differently from Selenium when the element is focused again. Specify the caret movement explicitly
