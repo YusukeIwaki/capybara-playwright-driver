@@ -97,10 +97,17 @@ module Capybara
         assert_page_alive {
           if firefox?
             # Preserve POST requests: https://github.com/microsoft/playwright/issues/39738
-            # Wait for a new load; expect_navigation can also resolve on pushState.
-            @playwright_page.expect_event('load', timeout: @default_navigation_timeout) do
-              @playwright_page.evaluate('() => { location.reload(true) }')
-            end
+            # Mark the old document so pushState and an earlier navigation's load
+            # cannot satisfy the wait for the reloaded document.
+            @playwright_page.evaluate(<<~JAVASCRIPT)
+              () => {
+                document[Symbol.for('capybara-playwright-driver.refresh')] = true;
+                location.reload(true);
+              }
+            JAVASCRIPT
+            @playwright_page.wait_for_function(<<~JAVASCRIPT, polling: 10, timeout: @default_navigation_timeout).dispose
+              () => !document[Symbol.for('capybara-playwright-driver.refresh')] && document.readyState === 'complete'
+            JAVASCRIPT
           else
             response = @playwright_page.reload
             @playwright_page.capybara_set_last_response(response)
