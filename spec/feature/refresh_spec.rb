@@ -34,7 +34,7 @@ RSpec.describe 'refresh', sinatra: true do
       <<~HTML
         <body data-method="POST" data-submission="#{submission_count}">
           #{params[:message]}
-          <script src="/refresh.js"></script>
+          <script async src="/refresh.js"></script>
         </body>
       HTML
     end
@@ -92,7 +92,9 @@ RSpec.describe 'refresh', sinatra: true do
 
   it 'preserves the POST request when reloading a form submission' do
     visit '/refresh_form'
-    click_button 'Submit'
+    playwright_page.expect_navigation do
+      click_button 'Submit'
+    end
 
     refresh
 
@@ -101,7 +103,9 @@ RSpec.describe 'refresh', sinatra: true do
 
   it 'waits for the reloaded submission when the previous page is still loading' do
     visit '/refresh_form'
-    click_button 'Submit'
+    playwright_page.expect_navigation(waitUntil: 'domcontentloaded') do
+      click_button 'Submit'
+    end
 
     refresh
 
