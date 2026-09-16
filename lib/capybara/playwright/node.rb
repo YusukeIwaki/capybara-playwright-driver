@@ -315,7 +315,7 @@ module Capybara
               if (el.nodeName == 'TEXTAREA'){
                 return el.textContent;
               } else if (el instanceof SVGElement) {
-                return el.textContent;
+                return el.textContent.replace(/\\n+/g, '\\n');
               } else {
                 return el.innerText;
               }
@@ -323,7 +323,6 @@ module Capybara
           JAVASCRIPT
           text.to_s.scrub.gsub(/\A[[:space:]&&[^\u00a0]]+/, '')
               .gsub(/[[:space:]&&[^\u00a0]]+\z/, '')
-              .gsub(/\n+/, "\n")
               .tr("\u00a0", ' ')
         }
       end
