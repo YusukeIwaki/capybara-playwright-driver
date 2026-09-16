@@ -94,15 +94,25 @@ module Capybara
       end
 
       def refresh
-        if firefox?
-          # ref: https://github.com/microsoft/playwright/issues/39738
-          @playwright_page.capybara_current_frame.evaluate('() => { location.reload(true) }')
-        else
-          assert_page_alive {
+        assert_page_alive {
+          if firefox?
+            # Preserve POST requests: https://github.com/microsoft/playwright/issues/39738
+            # Mark the old document so pushState and an earlier navigation's load
+            # cannot satisfy the wait for the reloaded document.
+            @playwright_page.evaluate(<<~JAVASCRIPT)
+              () => {
+                document[Symbol.for('capybara-playwright-driver.refresh')] = true;
+                location.reload(true);
+              }
+            JAVASCRIPT
+            @playwright_page.wait_for_function(<<~JAVASCRIPT, polling: 10, timeout: @default_navigation_timeout).dispose
+              () => !document[Symbol.for('capybara-playwright-driver.refresh')] && document.readyState === 'complete'
+            JAVASCRIPT
+          else
             response = @playwright_page.reload
             @playwright_page.capybara_set_last_response(response)
-          }
-        end
+          end
+        }
       end
 
       def find_xpath(query, **options)
