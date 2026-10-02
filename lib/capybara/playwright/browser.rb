@@ -422,7 +422,8 @@ module Capybara
         when ::Playwright::ElementHandle
           Node.new(@driver, @internal_logger, @playwright_page, arg)
         when ::Playwright::JSHandle
-          obj_type, is_array = arg.evaluate('obj => [typeof obj, Array.isArray(obj)]')
+          # typeof null is 'object', so report null separately and let json_value return nil.
+          obj_type, is_array = arg.evaluate('obj => [obj === null ? "null" : typeof obj, Array.isArray(obj)]')
           if obj_type == 'object'
             if is_array
               # Firefox often include 'toJSON' into properties.
