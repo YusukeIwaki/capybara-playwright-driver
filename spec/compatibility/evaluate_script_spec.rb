@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe 'evaluate_script', sinatra: true do
+RSpec.describe 'evaluate_script compatibility', sinatra: true do
   before do
     sinatra.get('/') { '<p>Hello</p>' }
     visit '/'
@@ -26,5 +26,9 @@ RSpec.describe 'evaluate_script', sinatra: true do
 
   it 'returns nil for null in a nested object' do
     expect(page.evaluate_script('{ a: { b: null } }')).to eq('a' => { 'b' => nil })
+  end
+
+  it 'returns nil for null from evaluate_async_script' do
+    expect(page.evaluate_async_script('arguments[0](null)')).to be_nil
   end
 end
