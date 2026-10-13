@@ -56,86 +56,26 @@ module Capybara
       end
 
       def set_checked_state_via_label?
-        playwright_checkable = find_playwright_element_handle_by_non_label_locator
-        playwright_checkable ||= playwright_locator_by_label unless @locator.nil?
-        return false unless playwright_checkable
+        return false if @locator.nil?
 
-        click_associated_label?(playwright_checkable)
-      rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, ::Playwright::Error
+        checkable = @node.find(@node_type, @locator, visible: :all, wait: 0)
+        click_associated_label?(checkable.native)
+      rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet,
+             Capybara::Playwright::Node::StaleReferenceError, ::Playwright::Error
         false
       end
 
       private
 
-      def playwright_locator_by_label
-        driver.with_playwright_page do |playwright_page|
-          return playwright_page.get_by_label(@locator.to_s)
-        end
-      end
+      def click_associated_label?(element_handle)
+        return true if element_handle.evaluate('el => !!el.checked') == @checked
 
-      def click_associated_label?(playwright_element_handle_or_locator)
-        return true if playwright_element_handle_or_locator.evaluate('el => !!el.checked') == @checked
-
-        label_element_handle = playwright_element_handle_or_locator.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
+        label_element_handle = element_handle.evaluate_handle('(el) => (el.labels && el.labels[0]) || el.closest("label") || null')
         return false unless label_element_handle.is_a?(::Playwright::ElementHandle)
 
         label_element_handle.click
 
-        playwright_element_handle_or_locator.evaluate('el => !!el.checked') == @checked
-      end
-
-      def find_playwright_element_handle_by_non_label_locator
-        return nil if @locator.nil?
-
-        locator_string = @locator.to_s
-        test_id_attr = session_options.test_id&.to_s
-
-        driver.with_playwright_page do |playwright_page|
-          return non_label_playwright_element_handle_candidates(playwright_page).find do |element_handle|
-            attribute_values = element_handle.evaluate(<<~JAVASCRIPT, arg: test_id_attr)
-            (el, testIdAttr) => ({
-              id: el.id || '',
-              name: el.getAttribute('name') || '',
-              testId: testIdAttr ? (el.getAttribute(testIdAttr) || '') : '',
-            })
-            JAVASCRIPT
-            [attribute_values['id'], attribute_values['name'], attribute_values['testId']].include?(locator_string)
-          end
-        end
-      rescue ::Playwright::Error
-        nil
-      end
-
-      def non_label_playwright_element_handle_candidates(playwright_page)
-        input_type =
-          case @node_type
-          when :checkbox
-            'checkbox'
-          when :radio_button
-            'radio'
-          else
-            return []
-          end
-
-        current_scope = scope_element
-        return current_scope.query_selector_all(%(input[type="#{input_type}"])) if current_scope
-
-        playwright_page.capybara_current_frame.query_selector_all(%(input[type="#{input_type}"]))
-      end
-
-      def scope_element
-        return nil unless @node.is_a?(Capybara::Node::Element)
-        return nil unless @node.send(:base).is_a?(Capybara::Playwright::Node)
-
-        @node.send(:base).send(:element)
-      end
-
-      def driver
-        @node.send(:driver)
-      end
-
-      def session_options
-        @node.send(:session_options)
+        element_handle.evaluate('el => !!el.checked') == @checked
       end
     end
 
