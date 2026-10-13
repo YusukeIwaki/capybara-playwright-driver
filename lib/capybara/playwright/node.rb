@@ -1144,7 +1144,9 @@ module Capybara
       end
 
       def tag_name
-        @tag_name ||= @element.evaluate('e => e.tagName.toLowerCase()')
+        @tag_name ||= assert_element_not_stale {
+          @element.evaluate('e => e.tagName.toLowerCase()')
+        }
       end
 
       def visible?
@@ -1200,23 +1202,29 @@ module Capybara
       end
 
       def disabled?
-        @element.evaluate(<<~JAVASCRIPT)
-        function(el) {
-          const xpath = 'parent::optgroup[@disabled] | \
-                        ancestor::select[@disabled] | \
-                        parent::fieldset[@disabled] | \
-                        ancestor::*[not(self::legend) or preceding-sibling::legend][parent::fieldset[@disabled]]';
-          return el.disabled || document.evaluate(xpath, el, null, XPathResult.BOOLEAN_TYPE, null).booleanValue
+        assert_element_not_stale {
+          @element.evaluate(<<~JAVASCRIPT)
+          function(el) {
+            const xpath = 'parent::optgroup[@disabled] | \
+                          ancestor::select[@disabled] | \
+                          parent::fieldset[@disabled] | \
+                          ancestor::*[not(self::legend) or preceding-sibling::legend][parent::fieldset[@disabled]]';
+            return el.disabled || document.evaluate(xpath, el, null, XPathResult.BOOLEAN_TYPE, null).booleanValue
+          }
+          JAVASCRIPT
         }
-        JAVASCRIPT
       end
 
       def readonly?
-        !@element.editable?
+        assert_element_not_stale {
+          !@element.editable?
+        }
       end
 
       def multiple?
-        @element.evaluate('el => el.multiple')
+        assert_element_not_stale {
+          @element.evaluate('el => el.multiple')
+        }
       end
 
       def rect
@@ -1290,7 +1298,9 @@ module Capybara
       def ==(other)
         return false unless other.is_a?(Node)
 
-        @element.evaluate('(self, other) => self == other', arg: other.element)
+        assert_element_not_stale {
+          @element.evaluate('(self, other) => self == other', arg: other.element)
+        }
       end
 
       def find_xpath(query, **options)
