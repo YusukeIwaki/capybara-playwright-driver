@@ -46,6 +46,16 @@ Refer the [documentation](https://playwright-ruby-client.vercel.app/docs/article
 
 ## Selenium compatibility
 
+`visible?` and selector filters such as `visible: true` do not account for ancestor overflow clipping. An element
+completely clipped by an ancestor with `overflow: hidden` can still be considered visible by this driver, while
+Selenium considers it hidden. This can change the results of queries such as `all('.item', visible: true)` when
+migrating Selenium tests.
+
+Playwright's native visibility methods (`ElementHandle#visible?` and `Locator#visible?` in playwright-ruby-client)
+also consider these clipped elements visible. If a test needs to count items actually displayed inside a clipped
+container, check their geometry relative to the container explicitly. See
+[#174](https://github.com/YusukeIwaki/capybara-playwright-driver/issues/174) for the driver comparison and discussion.
+
 Visible text for ordinary HTML elements follows the browser's
 [`innerText` behavior](https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute). This preserves
 meaningful blank lines, but paragraph and rich-text-editor boundaries can differ from Selenium's WebDriver text
