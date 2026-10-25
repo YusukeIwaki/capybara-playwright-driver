@@ -411,6 +411,19 @@ module Capybara
         end
 
         def send_keys(*keys)
+          # WebDriver Element Send Keys moves the caret to the end only when the
+          # element was not focused. Preserve the selection in an active editor.
+          # https://www.w3.org/TR/2026/WD-webdriver2-20260702/#element-send-keys
+          #
+          # References in ChromeDriver's element_commands.cc:
+          # - SendKeysToElement: append to newly focused text controls, then send
+          #   the whole sequence to the window without refocusing for each key.
+          #   https://github.com/chromium/chromium/blob/852d53b2cdde761fff9003021300b31c15fc1636/chrome/test/chromedriver/element_commands.cc#L191-L222
+          # - ExecuteSendKeysToElement: find the top editable ancestor for focus,
+          #   but collapse a Range over the requested element's own contents.
+          #   https://github.com/chromium/chromium/blob/852d53b2cdde761fff9003021300b31c15fc1636/chrome/test/chromedriver/element_commands.cc#L735-L799
+          # This adapts the caret preparation, not all of ChromeDriver's
+          # interactability checks; our differential specs cover the contract.
           @element.evaluate(<<~JAVASCRIPT)
             element => {
               let host = element;
@@ -418,11 +431,15 @@ module Capybara
                 while (host.parentElement && host.parentElement.isContentEditable)
                   host = host.parentElement;
               }
+              // Our shadow DOM adaptation of ChromeDriver's active-element check:
+              // document.activeElement would identify the shadow host instead.
               const root = host.getRootNode();
               if (root.activeElement === host) return;
 
+              // Focus first so it cannot reset the Range we are about to create.
               host.focus();
               if (element.isContentEditable) {
+                // Use the target's document so the Range also belongs to its iframe.
                 const range = element.ownerDocument.createRange();
                 range.selectNodeContents(element);
                 range.collapse(false);
@@ -431,6 +448,8 @@ module Capybara
                 selection.addRange(range);
               } else if (element.nodeName === 'TEXTAREA' ||
                          (element.nodeName === 'INPUT' && /^(text|search|tel|url|password)$/.test(element.type))) {
+                // ChromeDriver's kTextControlTypes: other input types do not
+                // support setSelectionRange (e.g. number and email).
                 element.setSelectionRange(element.value.length, element.value.length);
               }
             }
