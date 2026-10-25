@@ -35,6 +35,11 @@ jobs:
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 3
+      - name: Run text input compatibility tests
+        run: bundle exec rspec spec/compatibility/ --tag text_input
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 5
 
   example_spec:
     strategy:
@@ -72,6 +77,11 @@ jobs:
         env:
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 3
+      - name: Run text input compatibility tests
+        run: bundle exec rspec spec/compatibility/ --tag text_input
+        env:
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 5
 
   playwright_driver_spec:
     needs: example_spec
@@ -101,6 +111,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 25
+      - name: Run text input compatibility tests
+        run: bundle exec rspec spec/compatibility/ --tag text_input
+        env:
+          BROWSER: ${{ matrix.browser }}
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 5
 
   compatibility_test:
     needs: example_spec
@@ -171,6 +187,12 @@ jobs:
           DEBUG: 1
           PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
         timeout-minutes: 15
+      - name: Run text input compatibility tests
+        run: bundle exec rspec spec/compatibility/ --tag text_input
+        env:
+          BROWSER: firefox
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: ./node_modules/.bin/playwright
+        timeout-minutes: 5
       - run: allure generate reports/allure-results
       - uses: actions/upload-artifact@v4
         with:

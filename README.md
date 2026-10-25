@@ -65,18 +65,27 @@ algorithm. When exact whitespace is not part of an assertion, use Capybara's `no
 expect(message).to have_text('Hello Regards', normalize_ws: true)
 ```
 
-This driver delegates keyboard focus and caret behavior to Playwright rather than overriding it with JavaScript. One
-observable difference is that when a `contenteditable` element loses focus between `send_keys` calls, Playwright may
-place the caret differently from Selenium when the element is focused again. Specify the caret movement explicitly
-when the test depends on it:
+Element `send_keys` follows WebDriver's focus and selection rules: an unfocused text input, textarea, or
+`contenteditable` starts at the end of its content; an already focused element keeps its caret or selection.
+The element is prepared once per call. Subsequent keys follow focus changes made by the application, including Tab
+navigation and autocomplete controls. For example, a new call can return to an editor after its autocomplete takes focus:
 
 ```ruby
-editor.send_keys(:end, '@') # The page moves focus to an autocomplete control.
-editor.send_keys(:end, 'alice')
+editor.send_keys('@') # The page moves focus to an autocomplete control.
+editor.send_keys('alice') # Focus the editor again and append at its end.
 ```
 
-For text inputs and textareas, `fill_in` uses Playwright's typing behavior for every character regardless of the value
-length. Playwright sends `keydown`, `keypress`/`input`, and `keyup` for characters on a US keyboard, but sends only
+`set`, `fill_in`, and `send_keys` use the same keyboard sequence handling, including Enter for newlines and Tab for
+tab characters. Replacement selects the target content before typing, including inherited `contenteditable` children.
+`clear: :none` preserves an existing selection when the input already has focus; `clear: :backspace` and key arrays
+send their clearing keys before the replacement text. Elements replaced during focus or selection can be retried
+before typing starts. Once typing begins, the sequence is not replayed when the original element is replaced.
+
+The compatibility specs record two intentional differences from Capybara Selenium: setting an empty string clears
+`contenteditable` content, and a focused input inside a shadow root keeps its selection instead of moving to the end.
+
+Text entry uses Playwright's typing behavior for every character regardless of the value length. Playwright sends
+`keydown`, `keypress`/`input`, and `keyup` for characters on a US keyboard, but sends only
 `input` for other characters, including Japanese text. This follows
 [Playwright's documented keyboard behavior](https://playwright.dev/docs/api/class-keyboard#keyboard-type). Typing very
 large values is slower than Playwright's native `fill`, which does not send per-character keyboard events. When input
