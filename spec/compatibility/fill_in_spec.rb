@@ -384,6 +384,17 @@ RSpec.describe 'fill_in compatibility', sinatra: true, text_input: true do
     expect(find(:fillable_field, 'Body')['data-keyup-count']).to eq(long_text.length.to_s)
   end
 
+  it 'preserves the default keyup behavior for long values' do
+    visit '/long-text'
+    long_text = 'a' * 1_001
+
+    fill_in 'Body', with: long_text
+
+    # Selenium's default rapid mode types four leading and three trailing characters.
+    expected_count = page.driver.is_a?(Capybara::Playwright::Driver) ? long_text.length.to_s : '7'
+    expect(find(:fillable_field, 'Body')['data-keyup-count']).to eq(expected_count)
+  end
+
   it 'enters non-US keyboard characters' do
     visit '/long-text'
 
