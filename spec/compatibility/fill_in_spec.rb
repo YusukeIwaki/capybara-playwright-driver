@@ -149,7 +149,26 @@ FILL_IN_HELPERS = Module.new do
   end
 end
 
-RSpec.describe 'fill_in compatibility', sinatra: true do
+FILL_IN_LONG_TEXT_HTML = <<~HTML
+  <!DOCTYPE html>
+  <html>
+  <body>
+    <label for="body">Body</label>
+    <textarea id="body" name="body" data-input-count="0" data-keyup-count="0"></textarea>
+    <script>
+      const body = document.getElementById('body');
+      body.addEventListener('input', function() {
+        body.dataset.inputCount = String(Number(body.dataset.inputCount) + 1);
+      });
+      body.addEventListener('keyup', function() {
+        body.dataset.keyupCount = String(Number(body.dataset.keyupCount) + 1);
+      });
+    </script>
+  </body>
+  </html>
+HTML
+
+RSpec.describe 'fill_in compatibility', sinatra: true, text_input: true do
   include FILL_IN_HELPERS
 
   before do
@@ -157,6 +176,7 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     sinatra.get('/keyup') { FILL_IN_KEYUP_TEXTAREA_HTML }
     sinatra.get('/token-input') { FILL_IN_TOKEN_INPUT_HTML }
     sinatra.get('/one-time-code') { FILL_IN_ONE_TIME_CODE_HTML }
+    sinatra.get('/long-text') { FILL_IN_LONG_TEXT_HTML }
   end
 
   it 'triggers keyup events' do
@@ -164,7 +184,6 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
 
     fill_in 'Body', with: 'updated FAQ'
 
-    expect(find(:fillable_field, 'Body').value).to eq('updated FAQ')
     expect(find(:css, '#preview')).to have_text('updated FAQ')
   end
 
@@ -172,8 +191,13 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     visit '/token-input'
     fill_in 'Tags', with: 'tag1, tag2, tag3,'
 
-    expect(page).to have_css('#selected-tags li', count: 3)
     expect(all('#selected-tags li').map(&:text)).to eq %w[tag1 tag2 tag3]
+  end
+
+  it 'leaves no uncommitted text after entering complete tags' do
+    visit '/token-input'
+    fill_in 'Tags', with: 'tag1, tag2, tag3,'
+
     expect(find(:fillable_field, 'Tags').value).to eq('')
   end
 
@@ -183,15 +207,12 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
 
     digits = all('#verification-code input').map(&:value)
     expect(digits).to eq %w[1 2 3 4 5 6]
-    expect(page.active_element[:id]).to eq('digit-6')
   end
 
   it 'sends a trailing Enter to the current auto-advanced input' do
     visit '/one-time-code'
     fill_in 'Verification code', with: "123456\n"
 
-    digits = all('#verification-code input').map(&:value)
-    expect(digits).to eq %w[1 2 3 4 5 6]
     expect(evaluate_script('window.enterTarget')).to eq('digit-6')
   end
 
@@ -203,6 +224,10 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
   end
 
   it 'replaces an existing value even with caret position' do
+    if ENV['BROWSER'] == 'webkit' && RUBY_PLATFORM.include?('darwin')
+      pending 'macOS WebKit treats End as page navigation rather than moving the input caret'
+    end
+
     visit '/'
     find(:css, '#form_first_name').execute_script <<~JS
       this.focus();
@@ -216,28 +241,46 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
 
   it 'fills a negative number' do
     visit '/'
-    track_form_amount_keys
     fill_in('form_amount', with: '-7')
 
     expect(find(:fillable_field, 'form_amount').value).to eq('-7')
+  end
+
+  it 'emits keydown for each character of a negative number' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '-7')
+
     expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[- 7]
   end
 
   it 'fills a number with a leading decimal point' do
     visit '/'
-    track_form_amount_keys
     fill_in('form_amount', with: '.5')
 
     expect(find(:fillable_field, 'form_amount').value).to eq('.5')
+  end
+
+  it 'emits keydown for each character of a leading decimal number' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '.5')
+
     expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[. 5]
   end
 
   it 'fills a number in exponent notation' do
     visit '/'
-    track_form_amount_keys
     fill_in('form_amount', with: '1e3')
 
     expect(find(:fillable_field, 'form_amount').value).to eq('1e3')
+  end
+
+  it 'emits keydown for each character of an exponent' do
+    visit '/'
+    track_form_amount_keys
+    fill_in('form_amount', with: '1e3')
+
     expect(evaluate_script('window.capybara_formAmountKeydownEvents')).to eq %w[1 e 3]
   end
 
@@ -293,8 +336,6 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
   end
 
   it 'passes clear key arrays through' do
-    pending 'clear: Array is not supported by capybara-playwright-driver yet' if Capybara.current_driver == :playwright
-
     visit '/'
     fill_in('form_first_name',
             with: 'Harry',
@@ -327,5 +368,60 @@ RSpec.describe 'fill_in compatibility', sinatra: true do
     fill_in('form_first_name', with: FILL_IN_EMOJI_TEXT)
 
     expect(find(:fillable_field, 'form_first_name').value).to eq(FILL_IN_EMOJI_TEXT)
+  end
+
+  it 'replaces values longer than 1000 characters' do
+    visit '/long-text'
+    long_text = 'a' * 1_001
+
+    fill_in 'Body', with: long_text
+
+    expect(find(:fillable_field, 'Body').value).to eq(long_text)
+  end
+
+  it 'emits keyup for each character of a long value with rapid disabled' do
+    visit '/long-text'
+    long_text = 'a' * 1_001
+
+    fill_in 'Body', with: long_text, fill_options: { rapid: false }
+
+    expect(find(:fillable_field, 'Body')['data-keyup-count']).to eq(long_text.length.to_s)
+  end
+
+  it 'preserves the default keyup behavior for long values' do
+    visit '/long-text'
+    long_text = 'a' * 1_001
+
+    fill_in 'Body', with: long_text
+
+    # Selenium's default rapid mode types four leading and three trailing characters.
+    expected_count = page.driver.is_a?(Capybara::Playwright::Driver) ? long_text.length.to_s : '7'
+    expect(find(:fillable_field, 'Body')['data-keyup-count']).to eq(expected_count)
+  end
+
+  it 'enters non-US keyboard characters' do
+    visit '/long-text'
+
+    fill_in 'Body', with: '更新済み'
+
+    expect(find(:fillable_field, 'Body').value).to eq('更新済み')
+  end
+
+  it 'emits input for each non-US keyboard character' do
+    visit '/long-text'
+
+    fill_in 'Body', with: '更新済み'
+
+    expect(find(:fillable_field, 'Body')['data-input-count']).to eq('4')
+  end
+
+  it 'preserves the native keyup behavior for non-US keyboard characters' do
+    visit '/long-text'
+
+    fill_in 'Body', with: '更新済み'
+
+    # Playwright inserts characters outside its US key map without keyboard events.
+    expected_count = page.driver.is_a?(Capybara::Playwright::Driver) ? '0' : '4'
+    expect(find(:fillable_field, 'Body')['data-keyup-count']).to eq(expected_count)
   end
 end

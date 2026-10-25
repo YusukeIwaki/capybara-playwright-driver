@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+  <input id="first" value="John">
+  <input id="second" value="Other">
+  <textarea id="area">First line
+Last line</textarea>
+  <div id="editor" contenteditable="true">Hello</div>
+  <div id="article" contenteditable="true">Keep<p id="paragraph">Replace</p></div>
+  <button id="outside">Outside</button>
+  <button id="chip-one">One</button>
+  <button id="chip-two" tabindex="-1">Two</button>
+  <script>
+    window.keyEvents = [];
+    document.addEventListener('keydown', function(event) {
+      window.keyEvents.push({
+        key: event.key,
+        control: event.ctrlKey
+      });
+    });
+    document.getElementById('chip-one').addEventListener('keydown', function(event) {
+      if (event.key === 'ArrowRight') document.getElementById('chip-two').focus();
+    });
+    document.getElementById('chip-two').addEventListener('keydown', function(event) {
+      if (event.key === 'Delete') this.remove();
+    });
+  </script>
+</body>
+</html>

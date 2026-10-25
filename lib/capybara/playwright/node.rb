@@ -219,6 +219,7 @@ module Capybara
 
       class NotActionableError < StandardError ; end
       class StaleReferenceError < StandardError ; end
+      class InputInterruptedError < StandardError ; end
       class MissingBoundingBoxError < StandardError ; end
       class DragInterruptedError < StandardError ; end
 
@@ -371,109 +372,154 @@ module Capybara
 
       class TextInput < Settable
         def set(value, **options)
-          case options[:clear]
-          when :backspace
-            @element.press('End', timeout: @timeout)
-            existing_text = @element.evaluate('el => el.value')
-            existing_text.length.times { @element.press('Backspace', timeout: @timeout) }
-          when :none
-            @element.press('End', timeout: @timeout)
-            ensure_attached
-          when Array
-            @internal_logger.warn "options { clear: #{options[:clear]} } is ignored"
-          end
-
           text = value.to_s
-          if press_enter = text.end_with?("\r\n")
-            text = text[0...-2]
-          elsif press_enter = text.end_with?("\n")
-            text = text[0...-1]
+          input = KeyboardInput.new(@element, @timeout)
+
+          case options[:clear]
+          when :none
+            input.send_keys(text)
+          when :backspace
+            length = @element.evaluate('el => el.value || el.textContent || ""').length
+            input.send_keys(:end, *Array.new(length, :backspace), text)
+          when Array
+            input.send_keys(*options[:clear], text)
+          else
+            if text.empty?
+              @element.fill('', timeout: @timeout)
+            else
+              input.replace(text)
+            end
           end
-
-          keyboard = @element.owner_frame.page.keyboard
-          set_text(text, append: options[:clear] == :none, keyboard: keyboard)
-
-          keyboard.press('Enter') if press_enter
         rescue ::Playwright::TimeoutError
           raise if @element.editable?
 
           @internal_logger.info("Node#set: element is not editable. #{@element}")
         end
+      end
 
-        private def set_text(text, append:, keyboard:)
-          # ElementHandle#type can refocus inherited contenteditable descendants and drop the input.
-          if @element.evaluate('el => el.isContentEditable') && !append
-            @element.fill(text, timeout: @timeout)
-            return
-          end
-
-          text = text.gsub(/\r\n?/, "\n")
-
-          if text.include?("\t")
-            type_tab_separated_text(text, append: append, keyboard: keyboard)
-            return
-          end
-
-          if append
-            type_text(keyboard, text)
-          elsif text.empty?
-            @element.fill('', timeout: @timeout)
-          else
-            @element.select_text(timeout: @timeout)
-            replace_text(keyboard, text)
-          end
+      # Prepare the selection once, then let the browser route the whole sequence.
+      # Inherited contenteditable descendants are selected independently of their
+      # editing host, which is the element that can actually receive focus.
+      class KeyboardInput
+        def initialize(element, timeout)
+          @element = element
+          @timeout = timeout
         end
 
-        private def replace_text(keyboard, text)
-          head, *tail = text.split("\n", -1)
-          if head.empty?
-            @element.press('Enter', timeout: @timeout)
-            head = tail.shift
-            keyboard.type(head) unless head.empty?
-          else
-            first_character = head[/\A\X/]
-            @element.type(first_character, timeout: @timeout)
-            ensure_attached
-            remaining_text = head[first_character.length..-1]
-            keyboard.type(remaining_text) unless remaining_text.empty?
+        def replace(text)
+          if @element.evaluate('element => element.isContentEditable')
+            # This path used fill(), which waits for visibility and editability
+            # (including enabled state). select_text() alone only waits for visibility.
+            # https://playwright.dev/docs/actionability
+            @element.wait_for_element_state('visible', timeout: @timeout)
+            @element.wait_for_element_state('editable', timeout: @timeout)
           end
-
-          type_lines(keyboard, tail)
+          @element.select_text(timeout: @timeout)
+          type_keys([text])
         end
 
-        private def type_text(keyboard, text)
-          return if text.empty?
+        def send_keys(*keys)
+          # WebDriver Element Send Keys moves the caret to the end only when the
+          # element was not focused. Preserve the selection in an active editor.
+          # https://www.w3.org/TR/2026/WD-webdriver2-20260702/#element-send-keys
+          #
+          # References in ChromeDriver's element_commands.cc:
+          # - SendKeysToElement: append to newly focused text controls, then send
+          #   the whole sequence to the window without refocusing for each key.
+          #   https://github.com/chromium/chromium/blob/852d53b2cdde761fff9003021300b31c15fc1636/chrome/test/chromedriver/element_commands.cc#L191-L222
+          # - ExecuteSendKeysToElement: find the top editable ancestor for focus,
+          #   but collapse a Range over the requested element's own contents.
+          #   https://github.com/chromium/chromium/blob/852d53b2cdde761fff9003021300b31c15fc1636/chrome/test/chromedriver/element_commands.cc#L735-L799
+          # This adapts the caret preparation, not all of ChromeDriver's
+          # interactability checks; our differential specs cover the contract.
+          @element.evaluate(<<~JAVASCRIPT)
+            element => {
+              let host = element;
+              if (element.isContentEditable) {
+                while (host.parentElement && host.parentElement.isContentEditable)
+                  host = host.parentElement;
+              }
+              // Our shadow DOM adaptation of ChromeDriver's active-element check:
+              // document.activeElement would identify the shadow host instead.
+              const root = host.getRootNode();
+              if (root.activeElement === host) return;
 
-          head, *tail = text.split("\n", -1)
-          keyboard.type(head) unless head.empty?
-
-          type_lines(keyboard, tail)
+              // Focus first so it cannot reset the Range we are about to create.
+              host.focus();
+              if (element.isContentEditable) {
+                // Use the target's document so the Range also belongs to its iframe.
+                const range = element.ownerDocument.createRange();
+                range.selectNodeContents(element);
+                range.collapse(false);
+                const selection = element.ownerDocument.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+              } else if (element.nodeName === 'TEXTAREA' ||
+                         (element.nodeName === 'INPUT' && /^(text|search|tel|url|password)$/.test(element.type))) {
+                // ChromeDriver's kTextControlTypes: other input types do not
+                // support setSelectionRange (e.g. number and email).
+                element.setSelectionRange(element.value.length, element.value.length);
+              }
+            }
+          JAVASCRIPT
+          type_keys(keys)
         end
 
-        private def type_lines(keyboard, parts)
-          parts.each do |part|
-            keyboard.press('Enter')
-            keyboard.type(part) unless part.empty?
-          end
-        end
-
-        private def type_tab_separated_text(text, append:, keyboard:)
-          head, *tail = text.split("\t", -1)
-          set_text(head, append: append, keyboard: keyboard)
-
-          tail.each_with_index do |part, index|
-            if index.zero? && !append && head.empty?
-              @element.press('Tab', timeout: @timeout)
-            else
-              keyboard.press('Tab')
-            end
-            type_text(keyboard, part.gsub(/\r\n?/, "\n"))
-          end
-        end
-
-        private def ensure_attached
-          # Trigger Playwright's stale-element check without changing focus.
+        private def type_keys(keys)
+          keyboard = FocusedKeyboard.new(@element.owner_frame.page, @timeout)
+          sequence = SendKeys.new(keyboard, keys)
+          # Focus/select can replace the element in a microtask. Check before
+          # dispatch so Capybara can reload it without replaying any keystrokes.
           @element.enabled?
+          # Do not recheck the original handle after input has begun: the app may
+          # deliberately replace it or move focus, and replaying can duplicate input.
+          begin
+            sequence.execute
+          rescue ::Playwright::Error => err
+            # A navigation or a detached current focus can fail after earlier
+            # keys were delivered. Do not turn that into a retry of the whole set.
+            raise InputInterruptedError.new(err)
+          end
+        end
+      end
+
+      class FocusedKeyboard
+        def initialize(page, timeout)
+          @page = page
+          @timeout = timeout
+        end
+
+        def type(text)
+          @page.keyboard.type(text)
+        end
+
+        def press(key)
+          # ElementHandle#press waits for navigation triggered by the key, unlike
+          # Keyboard#press. Use the current focus so Tab/autocomplete can redirect
+          # later keys without returning to the original element.
+          # https://playwright.dev/docs/api/class-elementhandle#element-handle-press
+          focused = focused_element(@page.main_frame)
+          focused.press(key, timeout: @timeout)
+        ensure
+          focused.dispose if focused
+        end
+
+        private def focused_element(frame)
+          # Local focus traversal through shadow roots and frames. Pressing the iframe
+          # itself would blur its editor. content_frame also works across origins.
+          focused = frame.evaluate_handle(<<~JAVASCRIPT)
+            () => {
+              let element = document.activeElement;
+              while (element && element.shadowRoot && element.shadowRoot.activeElement)
+                element = element.shadowRoot.activeElement;
+              return element;
+            }
+          JAVASCRIPT
+          child_frame = focused.content_frame
+          return focused unless child_frame
+
+          focused.dispose
+          focused_element(child_frame)
         end
       end
 
@@ -685,7 +731,9 @@ module Capybara
       end
 
       def send_keys(*args)
-        SendKeys.new(@element, args).execute
+        assert_element_not_stale do
+          KeyboardInput.new(@element, capybara_default_wait_time).send_keys(*args)
+        end
       end
 
       class SendKeys
@@ -757,93 +805,63 @@ module Capybara
           command: 'Meta',
         }
 
-        def initialize(element_or_keyboard, keys)
-          @element_or_keyboard = element_or_keyboard
+        def initialize(keyboard, keys)
+          @keyboard = keyboard
+          @executables = []
+          add_keys(keys)
+        end
 
-          holding_keys = []
-          @executables = keys.each_with_object([]) do |key, executables|
-            if MODIFIERS[key]
-              holding_keys << key
-            else
-              if holding_keys.empty?
-                case key
-                when String
-                  executables << TypeText.new(key)
-                when Symbol
-                  executables << PressKey.new(
-                    key: key_for(key),
-                    modifiers: [],
-                  )
-                when Array
-                  _key = key.last
-                  code =
-                    if _key.is_a?(String) && _key.length == 1
-                      _key
-                    elsif _key.is_a?(Symbol)
-                      key_for(_key)
-                    else
-                      raise ArgumentError.new("invalid key: #{_key}. Symbol of 1-length String is expected.")
-                    end
-                  modifiers = key.first(key.size - 1).map { |k| modifier_for(k) }
-                  executables << PressKey.new(
-                    key: code,
-                    modifiers: modifiers,
-                  )
-                end
-              else
-                modifiers = holding_keys.map { |k| modifier_for(k) }
-
-                case key
-                when String
-                  key.each_char do |char|
-                    executables << PressKey.new(
-                      key: char,
-                      modifiers: modifiers,
-                    )
-                  end
-                when Symbol
-                  executables << PressKey.new(
-                    key: key_for(key),
-                    modifiers: modifiers
-                  )
+        private def add_keys(keys, modifiers = [])
+          keys.each do |key|
+            case key
+            when Array
+              add_keys(key, modifiers.dup)
+            when String
+              key.scan(/\r\n|[\r\n\t]|[^\r\n\t]+/).each do |part|
+                case part
+                when "\t"
+                  add_key('Tab', modifiers)
+                when "\r", "\n", "\r\n"
+                  add_key('Enter', modifiers)
                 else
-                  raise ArgumentError.new("#{key} cannot be handled with holding key #{holding_keys}")
+                  if modifiers.empty?
+                    @executables << TypeText.new(part)
+                  else
+                    part.each_char { |character| add_key(character, modifiers) }
+                  end
                 end
               end
+            when Symbol
+              if MODIFIERS.key?(key)
+                modifiers << MODIFIERS.fetch(key)
+              elsif key == :null
+                modifiers.clear
+              else
+                add_key(KEYS.fetch(key) { raise ArgumentError, "invalid key specified: #{key}" }, modifiers)
+              end
+            else
+              raise ArgumentError, "invalid key specified: #{key.inspect}"
             end
           end
         end
 
-        private def modifier_for(modifier)
-          MODIFIERS[modifier] or raise ArgumentError.new("invalid modifier specified: #{modifier}")
-        end
-
-        private def key_for(key)
-          KEYS[key] or raise ArgumentError.new("invalid key specified: #{key}")
+        private def add_key(key, modifiers)
+          @executables << PressKey.new(key: key, modifiers: modifiers)
         end
 
         def execute
-          @executables.each do |executable|
-            executable.execute_for(@element_or_keyboard)
-          end
+          @executables.each { |executable| executable.execute_for(@keyboard) }
         end
 
         class PressKey
           def initialize(key:, modifiers:)
-            # Shift requires an explicitly uppercase a-z key to produce the correct output
-            # See https://playwright.dev/docs/input#keys-and-shortcuts
-            key = key.upcase if modifiers == [MODIFIERS[:shift]] && key.match?(/^[a-z]$/)
-
-            # puts "PressKey: key=#{key} modifiers: #{modifiers}"
-            if modifiers.empty?
-              @key = key
-            else
-              @key = (modifiers + [key]).join('+')
-            end
+            # Playwright needs the uppercase key when Shift modifies a letter.
+            key = key.upcase if modifiers.include?('Shift') && key.match?(/^[a-z]$/)
+            @key = (modifiers + [key]).uniq.join('+')
           end
 
-          def execute_for(element)
-            element.press(@key)
+          def execute_for(keyboard)
+            keyboard.press(@key)
           end
         end
 
@@ -852,8 +870,8 @@ module Capybara
             @text = text
           end
 
-          def execute_for(element)
-            element.type(@text)
+          def execute_for(keyboard)
+            keyboard.type(@text)
           end
         end
       end
