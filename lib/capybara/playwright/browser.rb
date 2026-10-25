@@ -238,7 +238,7 @@ module Capybara
         }
       end
 
-      def send_keys(*args)
+      def send_keys(*args, **options)
         Node::SendKeys.new(@playwright_page.keyboard, args).execute
       end
 

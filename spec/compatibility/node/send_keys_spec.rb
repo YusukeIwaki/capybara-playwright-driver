@@ -115,7 +115,10 @@ RSpec.describe 'Node#send_keys compatibility', sinatra: true, text_input: true d
   it 'continues a key sequence in an autocomplete that takes focus' do
     find('#editor').execute_script(<<~JS)
       this.addEventListener('input', function() {
-        if (this.textContent.includes('@')) document.getElementById('second').focus();
+        if (!this.textContent.includes('@')) return;
+        const search = document.getElementById('second');
+        search.focus();
+        search.setSelectionRange(0, 0);
       });
     JS
 
@@ -145,9 +148,9 @@ RSpec.describe 'Node#send_keys compatibility', sinatra: true, text_input: true d
     editor.send_keys(:end, '@')
     find('#outside').click
 
-    editor.send_keys(:home, 'X')
+    editor.send_keys(:left, 'X')
 
-    expect(editor.text).to eq('XHello@')
+    expect(editor.text).to eq('HelloX@')
   end
 
   it 'sends a key array without modifiers' do

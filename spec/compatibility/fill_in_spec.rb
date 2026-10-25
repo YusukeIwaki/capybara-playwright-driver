@@ -224,6 +224,10 @@ RSpec.describe 'fill_in compatibility', sinatra: true, text_input: true do
   end
 
   it 'replaces an existing value even with caret position' do
+    if ENV['BROWSER'] == 'webkit' && RUBY_PLATFORM.include?('darwin')
+      pending 'macOS WebKit treats End as page navigation rather than moving the input caret'
+    end
+
     visit '/'
     find(:css, '#form_first_name').execute_script <<~JS
       this.focus();
