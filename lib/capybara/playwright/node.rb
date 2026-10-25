@@ -219,6 +219,7 @@ module Capybara
 
       class NotActionableError < StandardError ; end
       class StaleReferenceError < StandardError ; end
+      class InputInterruptedError < StandardError ; end
       class MissingBoundingBoxError < StandardError ; end
       class DragInterruptedError < StandardError ; end
 
@@ -406,6 +407,13 @@ module Capybara
         end
 
         def replace(text)
+          if @element.evaluate('element => element.isContentEditable')
+            # This path used fill(), which waits for visibility and editability
+            # (including enabled state). select_text() alone only waits for visibility.
+            # https://playwright.dev/docs/actionability
+            @element.wait_for_element_state('visible', timeout: @timeout)
+            @element.wait_for_element_state('editable', timeout: @timeout)
+          end
           @element.select_text(timeout: @timeout)
           type_keys([text])
         end
@@ -458,12 +466,60 @@ module Capybara
         end
 
         private def type_keys(keys)
+          keyboard = FocusedKeyboard.new(@element.owner_frame.page, @timeout)
+          sequence = SendKeys.new(keyboard, keys)
           # Focus/select can replace the element in a microtask. Check before
           # dispatch so Capybara can reload it without replaying any keystrokes.
           @element.enabled?
           # Do not recheck the original handle after input has begun: the app may
           # deliberately replace it or move focus, and replaying can duplicate input.
-          SendKeys.new(@element.owner_frame.page.keyboard, keys).execute
+          begin
+            sequence.execute
+          rescue ::Playwright::Error => err
+            # A navigation or a detached current focus can fail after earlier
+            # keys were delivered. Do not turn that into a retry of the whole set.
+            raise InputInterruptedError.new(err)
+          end
+        end
+      end
+
+      class FocusedKeyboard
+        def initialize(page, timeout)
+          @page = page
+          @timeout = timeout
+        end
+
+        def type(text)
+          @page.keyboard.type(text)
+        end
+
+        def press(key)
+          # ElementHandle#press waits for navigation triggered by the key, unlike
+          # Keyboard#press. Use the current focus so Tab/autocomplete can redirect
+          # later keys without returning to the original element.
+          # https://playwright.dev/docs/api/class-elementhandle#element-handle-press
+          focused = focused_element(@page.main_frame)
+          focused.press(key, timeout: @timeout)
+        ensure
+          focused.dispose if focused
+        end
+
+        private def focused_element(frame)
+          # Local focus traversal through shadow roots and frames. Pressing the iframe
+          # itself would blur its editor. content_frame also works across origins.
+          focused = frame.evaluate_handle(<<~JAVASCRIPT)
+            () => {
+              let element = document.activeElement;
+              while (element && element.shadowRoot && element.shadowRoot.activeElement)
+                element = element.shadowRoot.activeElement;
+              return element;
+            }
+          JAVASCRIPT
+          child_frame = focused.content_frame
+          return focused unless child_frame
+
+          focused.dispose
+          focused_element(child_frame)
         end
       end
 

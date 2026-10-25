@@ -6,6 +6,11 @@ RSpec.describe 'Node#send_keys compatibility', sinatra: true, text_input: true d
   before do
     sinatra.get('/') { File.read(File.expand_path('../../fixtures/text_input.html', __dir__)) }
     sinatra.get('/frame') { '<iframe id="input-frame" src="/"></iframe>' }
+    sinatra.get('/cross-origin-frame') { '<iframe id="input-frame" src="http://127.0.0.1:4567/frame-content"></iframe>' }
+    sinatra.get('/frame-content') do
+      headers 'X-Frame-Options' => 'ALLOWALL'
+      File.read(File.expand_path('../../fixtures/text_input.html', __dir__))
+    end
     visit '/'
   end
 
@@ -203,6 +208,31 @@ RSpec.describe 'Node#send_keys compatibility', sinatra: true, text_input: true d
 
       expect(find('#editor').text).to eq('HelloXY')
     end
+  end
+
+  it 'sends special keys to an editor inside a cross-origin frame' do
+    visit '/cross-origin-frame'
+
+    within_frame('input-frame') do
+      find('#editor').send_keys("\nWorld")
+
+      expect(find('#editor').evaluate_script('this.innerText')).to eq("Hello\nWorld")
+    end
+  end
+
+  it 'sends special keys to an input inside a shadow root' do
+    skip 'Capybara does not expose shadow roots' unless find('body').respond_to?(:shadow_root)
+    find('body').execute_script(<<~JS)
+      const host = document.createElement('div');
+      host.id = 'shadow-host';
+      this.append(host);
+      host.attachShadow({ mode: 'open' }).innerHTML = '<input id="shadow-input" value="John">';
+    JS
+    input = find('#shadow-host').shadow_root.find('#shadow-input')
+
+    input.send_keys(:left, 'X')
+
+    expect(input.value).to eq('JohXn')
   end
 
   it 'preserves the selection in a focused shadow-root input' do

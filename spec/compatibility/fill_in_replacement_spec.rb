@@ -42,6 +42,18 @@ RSpec.describe 'fill_in replacement compatibility', sinatra: true, text_input: t
     expect(find('#field').value).to eq('seedabc')
   end
 
+  it 'retries send_keys when the input is replaced before the first key' do
+    find('#field').execute_script(<<~JS)
+      this.addEventListener('focus', function() {
+        queueMicrotask(() => this.replaceWith(this.cloneNode(true)));
+      }, { once: true });
+    JS
+
+    find('#field').send_keys('abc')
+
+    expect(find('#field').value).to eq('seedabc')
+  end
+
   it 'does not replay input when the element is replaced after typing starts' do
     find('#field').execute_script(<<~JS)
       this.addEventListener('input', function() {

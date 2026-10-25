@@ -78,11 +78,15 @@ editor.send_keys('alice') # Focus the editor again and append at its end.
 `set`, `fill_in`, and `send_keys` use the same keyboard sequence handling, including Enter for newlines and Tab for
 tab characters. Replacement selects the target content before typing, including inherited `contenteditable` children.
 `clear: :none` preserves an existing selection when the input already has focus; `clear: :backspace` and key arrays
-send their clearing keys before the replacement text. Elements replaced during focus or selection can be retried
-before typing starts. Once typing begins, the sequence is not replayed when the original element is replaced.
+send their clearing keys before the replacement text. Contenteditable replacement retains Playwright's visibility,
+enabled-state, and editability waiting. Element key presses retain navigation waiting while following the current
+focus. Elements replaced during waiting, focus, or selection can be retried before typing starts. Once typing begins,
+the sequence is not replayed when the original element is replaced. A Playwright error during dispatch raises
+`Capybara::Playwright::Node::InputInterruptedError` rather than retrying potentially delivered input.
 
 The compatibility specs record two intentional differences from Capybara Selenium: setting an empty string clears
 `contenteditable` content, and a focused input inside a shadow root keeps its selection instead of moving to the end.
+They also retain Playwright's wait for ARIA disabled/readonly state, which Selenium does not apply to contenteditable.
 
 Text entry uses Playwright's typing behavior for every character regardless of the value length. Playwright sends
 `keydown`, `keypress`/`input`, and `keyup` for characters on a US keyboard, but sends only
