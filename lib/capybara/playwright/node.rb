@@ -915,7 +915,7 @@ module Capybara
         def execute
           input_started = false
           mouse_down = false
-          @target.wait_for_element_state('visible', timeout: @timeout)
+          wait_for_target_layout
           @source.scroll_into_view_if_needed(timeout: @timeout)
 
           position_from = center_of(@source)
@@ -943,6 +943,22 @@ module Capybara
           raise
         ensure
           @page.mouse.up if mouse_down
+        end
+
+        # Playwright's 'visible' state requires a non-empty bounding box, which an
+        # empty drop zone never has. Selenium drags onto such an element, so only
+        # wait for the target to be rendered.
+        TARGET_HAS_LAYOUT = <<~JAVASCRIPT
+          (element) => {
+            if (!element.isConnected) throw new Error('Element is not attached to the DOM');
+
+            return element.getClientRects().length > 0 &&
+              window.getComputedStyle(element).visibility === 'visible';
+          }
+        JAVASCRIPT
+
+        private def wait_for_target_layout
+          @target.owner_frame.wait_for_function(TARGET_HAS_LAYOUT, arg: @target, timeout: @timeout).dispose
         end
 
         # @param element [Playwright::ElementHandle]
